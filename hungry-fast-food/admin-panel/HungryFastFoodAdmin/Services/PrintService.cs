@@ -267,8 +267,13 @@ namespace HungryFastFoodAdmin.Services
             g.DrawString(totalStrVal, boldFont, Brushes.Black, colTotalX - g.MeasureString(totalStrVal, boldFont).Width, y);
             y += 22;
 
-            // Payment method
-            string paymentStr = _currentOrder.PaymentMethod?.ToUpper() ?? "CASH";
+            // Payment method and status
+            string paymentMethod = _currentOrder.PaymentMethod?.ToUpper() ?? "CASH";
+            bool isPaid = _currentOrder.PaymentStatus != null && 
+                          (_currentOrder.PaymentStatus.Equals("completed", StringComparison.OrdinalIgnoreCase) || 
+                           _currentOrder.PaymentStatus.Equals("paid", StringComparison.OrdinalIgnoreCase));
+            string paymentStatusText = isPaid ? "PAID" : "UNPAID";
+            string paymentStr = $"{paymentMethod} ({paymentStatusText})";
             g.DrawString("Payment:", font, Brushes.Black, 10, y);
             g.DrawString(paymentStr, font, Brushes.Black, colTotalX - g.MeasureString(paymentStr, font).Width, y);
             y += 18;
@@ -455,6 +460,14 @@ namespace HungryFastFoodAdmin.Services
 
             g.DrawString("Type:", font, Brushes.Black, 10, y);
             g.DrawString(_kitchenOrder.OrderType.ToUpper(), font, Brushes.Black, valX, y);
+            y += 18;
+
+            bool isKitchenPaid = _kitchenOrder.PaymentStatus != null && 
+                                 (_kitchenOrder.PaymentStatus.Equals("completed", StringComparison.OrdinalIgnoreCase) || 
+                                  _kitchenOrder.PaymentStatus.Equals("paid", StringComparison.OrdinalIgnoreCase));
+            string kitchenPaymentStatusText = isKitchenPaid ? "PAID" : "UNPAID";
+            g.DrawString("Payment:", font, Brushes.Black, 10, y);
+            g.DrawString($"{_kitchenOrder.PaymentMethod?.ToUpper() ?? "CASH"} ({kitchenPaymentStatusText})", boldFont, Brushes.Black, valX, y);
             y += 18;
 
             g.DrawString("Customer:", font, Brushes.Black, 10, y);

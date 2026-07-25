@@ -8,6 +8,10 @@ import {
     getUserOrders,
     checkDelivery
 } from '../controllers/orderController.js';
+import {
+    initiateJazzCashPayment,
+    handleJazzCashCallback
+} from '../controllers/jazzcashController.js';
 import { verifyToken, optionalAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validation.js';
 import { schemas } from '../middleware/validation.js';
@@ -19,6 +23,10 @@ const router = express.Router();
 router.get('/check-delivery', checkDelivery);
 router.post('/', optionalAuth, orderLimiter, validate(schemas.createOrder), createOrder);
 router.get('/track/:orderNumber', getOrderByNumber);
+
+// JazzCash Payment Routes
+router.post('/jazzcash/initiate', optionalAuth, initiateJazzCashPayment);
+router.post('/jazzcash/callback', handleJazzCashCallback);
 
 // Protected routes (user)
 router.get('/my-orders', verifyToken, getUserOrders);

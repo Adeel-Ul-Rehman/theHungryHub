@@ -183,6 +183,40 @@ export default function Checkout() {
             const response = await api.post('/orders', orderData);
 
             if (response.success && response.data) {
+                // Check if payment method is JazzCash
+                if (paymentMethod === 'jazzcash') {
+                    setToast({ type: 'success', message: 'Redirecting to JazzCash...' });
+                    try {
+                        const checkoutRes = await api.post('/orders/jazzcash/initiate', { orderId: response.data.order.id });
+                        if (checkoutRes.success && checkoutRes.postUrl) {
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = checkoutRes.postUrl;
+
+                            // Append parameters as hidden inputs
+                            Object.keys(checkoutRes.params).forEach(key => {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = key;
+                                input.value = checkoutRes.params[key];
+                                form.appendChild(input);
+                            });
+
+                            document.body.appendChild(form);
+                            localStorage.removeItem('guest_checkout');
+                            form.submit();
+                            return;
+                        } else {
+                            setToast({ type: 'error', message: checkoutRes.message || 'Failed to initiate payment' });
+                            return;
+                        }
+                    } catch (err) {
+                        setToast({ type: 'error', message: err.message || 'Failed to initiate payment' });
+                        return;
+                    }
+                }
+
+                // Default COD flow
                 setToast({ type: 'success', message: '🎉 Order placed successfully!' });
                 localStorage.removeItem('guest_checkout');
                 clearCart();

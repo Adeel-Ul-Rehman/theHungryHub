@@ -24,6 +24,8 @@ const ContactUs = lazy(() => import('./components/pages/ContactUs'));
 const RefundPolicy = lazy(() => import('./components/pages/RefundPolicy'));
 const ProductDetailPage = lazy(() => import('./components/pages/ProductDetailPage'));
 const DealDetailPage = lazy(() => import('./components/pages/DealDetailPage'));
+const OrderSuccess = lazy(() => import('./components/payment/JazzCashPayment').then(module => ({ default: module.OrderSuccess })));
+const OrderFailed = lazy(() => import('./components/payment/JazzCashPayment').then(module => ({ default: module.OrderFailed })));
 
 function App() {
     const { pathname } = useLocation();
@@ -54,6 +56,8 @@ function App() {
                         <Route path="/forgot-password" element={<ForgotPassword />} />
                         <Route path="/reset-password" element={<ResetPassword />} />
                         <Route path="/verify-otp" element={<OTPVerification />} />
+                        <Route path="/order-success" element={<OrderSuccess />} />
+                        <Route path="/order-failed" element={<OrderFailed />} />
 
                         {/* Protected Routes */}
                         <Route path="/cart" element={<Cart />} />
