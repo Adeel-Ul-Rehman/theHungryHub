@@ -216,8 +216,12 @@ process.on('unhandledRejection', (err) => {
     console.error('💥 Unhandled Rejection:', err);
 });
 
-// Start the server
-startServer();
+// Start the server if not running on Vercel serverless platform
+if (process.env.VERCEL) {
+    console.log('⚡ Running in Serverless Environment (Vercel) - app.listen and Socket Server bypassed');
+} else {
+    startServer();
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
