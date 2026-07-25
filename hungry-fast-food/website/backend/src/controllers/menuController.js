@@ -15,6 +15,7 @@ export const getCategories = async (req, res) => {
         const includeInactive = req.query.include_inactive === 'true';
         const categories = await Category.getAll(includeInactive);
 
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.status(200).json({
             success: true,
             data: categories
@@ -204,6 +205,7 @@ export const getProducts = async (req, res) => {
             offset: parseInt(offset)
         });
 
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.status(200).json({
             success: true,
             data: products,
@@ -422,6 +424,7 @@ export const getDeals = async (req, res) => {
             is_featured: is_featured !== undefined ? is_featured === 'true' : undefined
         });
 
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.status(200).json({
             success: true,
             data: deals

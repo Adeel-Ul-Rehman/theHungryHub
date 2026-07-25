@@ -9,6 +9,8 @@ export default function ProductCard({ product }) {
     const { addToCart } = useCart();
     const [selectedVariation, setSelectedVariation] = useState(null);
     const [price, setPrice] = useState(product.base_price);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalQuantity, setModalQuantity] = useState(1);
 
     useEffect(() => {
         if (product.variations && product.variations.length > 0) {
@@ -24,13 +26,6 @@ export default function ProductCard({ product }) {
         const base = parseFloat(product.discount_price || product.base_price);
         const adjustment = parseFloat(variation?.price_adjustment || 0);
         setPrice(base + adjustment);
-    };
-
-    const handleVariationChange = (e) => {
-        const varId = e.target.value;
-        const variation = product.variations.find(v => v.id.toString() === varId);
-        setSelectedVariation(variation);
-        updatePrice(variation);
     };
 
     const handleAddToCart = (e) => {
@@ -49,6 +44,16 @@ export default function ProductCard({ product }) {
         };
 
         addToCart(cartItem);
+    };
+
+    const handleQuickAddClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (product.variations && product.variations.length > 0) {
+            setIsModalOpen(true);
+        } else {
+            handleAddToCart(e);
+        }
     };
 
     return (
@@ -87,30 +92,6 @@ export default function ProductCard({ product }) {
                 </div>
 
                 <div className="space-y-3 mt-auto">
-                    {/* Variations dropdown if available */}
-                    {product.variations && product.variations.length > 0 && (
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
-                                Choose Size/Option
-                            </label>
-                            <select
-                                onChange={handleVariationChange}
-                                value={selectedVariation?.id || ''}
-                                className="w-full text-xs font-semibold px-2 py-1.5 border border-gray-200 rounded bg-white text-text-primary focus:outline-none focus:border-primary"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {product.variations.map((v) => {
-                                    const optionPrice = parseFloat(product.discount_price || product.base_price) + parseFloat(v.price_adjustment || 0);
-                                    return (
-                                        <option key={v.id} value={v.id}>
-                                            {v.variation_name} (PKR {optionPrice.toFixed(0)})
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
-                    )}
-
                     {/* Price and Add button */}
                     <div className="flex items-center justify-between gap-2 pt-1.5">
                         <div className="flex flex-col">
@@ -123,18 +104,160 @@ export default function ProductCard({ product }) {
                                 {formatPrice(price)}
                             </span>
                         </div>
-                        <button
-                            onClick={handleAddToCart}
-                            className="bg-primary hover:bg-primary-dark text-white p-2 sm:p-2.5 rounded-lg shadow hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1 group-hover:scale-105"
-                            title="Add to Cart"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                            </svg>
-                        </button>
+                        {product.variations && product.variations.length > 0 ? (
+                            <button
+                                onClick={handleQuickAddClick}
+                                className="bg-primary hover:bg-primary-dark text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:shadow-lg transition-all active:scale-95 flex items-center gap-1.5"
+                            >
+                                <span>Choose Size</span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleQuickAddClick}
+                                className="bg-primary hover:bg-primary-dark text-white p-2 sm:p-2.5 rounded-lg shadow hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-1 group-hover:scale-105"
+                                title="Add to Cart"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Size Selection Modal Overlay */}
+            {isModalOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsModalOpen(false);
+                    }}
+                >
+                    <div 
+                        className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-6 shadow-2xl relative border border-gray-100 animate-slide-up text-left"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Close Button */}
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsModalOpen(false);
+                            }}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-text-primary text-xl font-bold p-2 transition-colors cursor-pointer"
+                        >
+                            &times;
+                        </button>
+
+                        {/* Product info */}
+                        <div className="space-y-2">
+                            <span className="text-[10px] uppercase font-extrabold tracking-wider bg-orange-50 text-primary px-2.5 py-1 rounded-full">
+                                Size Selection
+                            </span>
+                            <h3 className="font-heading font-black text-xl text-text-primary mt-2">
+                                {product.name}
+                            </h3>
+                            <p className="text-text-secondary text-xs leading-relaxed">
+                                {product.description || 'Choose your preferred size/option below to add to your order.'}
+                            </p>
+                        </div>
+
+                        {/* Variations list */}
+                        <div className="space-y-2.5">
+                            <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">
+                                Available Sizes
+                            </label>
+                            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                {product.variations.map((v) => {
+                                    const optionPrice = parseFloat(product.discount_price || product.base_price) + parseFloat(v.price_adjustment || 0);
+                                    const isSelected = selectedVariation?.id === v.id;
+                                    return (
+                                        <button
+                                            key={v.id}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setSelectedVariation(v);
+                                                updatePrice(v);
+                                            }}
+                                            className={`w-full px-4 py-3 rounded-2xl border-2 flex items-center justify-between text-sm transition-all duration-200 ${
+                                                isSelected
+                                                    ? 'border-primary bg-orange-50/40 text-primary font-bold shadow-sm shadow-orange-100'
+                                                    : 'border-gray-200 bg-white text-text-primary font-semibold hover:border-primary/50'
+                                            }`}
+                                        >
+                                            <span>{v.variation_name}</span>
+                                            <span className={isSelected ? 'font-black' : 'text-text-secondary font-medium'}>
+                                                PKR {optionPrice.toFixed(0)}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Quantity Selector */}
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-150">
+                            <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
+                                Quantity
+                            </span>
+                            <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50 overflow-hidden shadow-sm">
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (modalQuantity > 1) setModalQuantity(modalQuantity - 1);
+                                    }}
+                                    className="px-3 py-1.5 hover:bg-gray-150 text-text-primary hover:text-primary transition-colors font-bold text-sm"
+                                >
+                                    -
+                                </button>
+                                <span className="px-4 text-xs font-bold text-text-primary">
+                                    {modalQuantity}
+                                </span>
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setModalQuantity(modalQuantity + 1);
+                                    }}
+                                    className="px-3 py-1.5 hover:bg-gray-150 text-text-primary hover:text-primary transition-colors font-bold text-sm"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Action CTA */}
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const cartItem = {
+                                    id: `${product.id}-${selectedVariation.id}`,
+                                    product_id: product.id,
+                                    name: product.name,
+                                    price: parseFloat(price),
+                                    image_url: product.image_url,
+                                    is_deal: false,
+                                    quantity: modalQuantity,
+                                    variation_id: selectedVariation.id,
+                                    variation_name: selectedVariation.variation_name,
+                                };
+                                addToCart(cartItem);
+                                setIsModalOpen(false);
+                                setModalQuantity(1); // Reset quantity
+                            }}
+                            className="w-full btn-primary py-4 text-center font-bold text-sm tracking-wide rounded-2xl shadow-lg shadow-orange-100/50 block"
+                        >
+                            Add to Cart (PKR {(price * modalQuantity).toFixed(0)})
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
