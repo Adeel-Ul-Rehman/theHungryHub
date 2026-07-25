@@ -19,6 +19,19 @@ namespace HungryFastFoodAdmin.Forms
             this.BackColor = Color.FromArgb(250, 249, 246); // Cream background #FAF9F6
             this.ForeColor = Color.FromArgb(53, 57, 59); // Text Primary #35393b
 
+            // Load and apply the custom window and taskbar logo icon dynamically
+            try
+            {
+                if (System.IO.File.Exists("logo.ico"))
+                {
+                    this.Icon = new Icon("logo.ico");
+                }
+            }
+            catch
+            {
+                // Fallback silently if logo.ico is missing or corrupt
+            }
+
             this.Load += (s, e) => ApplyControlStyles(this);
         }
 
