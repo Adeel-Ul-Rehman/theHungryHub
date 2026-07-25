@@ -99,11 +99,14 @@ export default function ProductCard({ product }) {
                                 className="w-full text-xs font-semibold px-2 py-1.5 border border-gray-200 rounded bg-white text-text-primary focus:outline-none focus:border-primary"
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                {product.variations.map((v) => (
-                                    <option key={v.id} value={v.id}>
-                                        {v.variation_name} (+{v.price_adjustment} PKR)
-                                    </option>
-                                ))}
+                                {product.variations.map((v) => {
+                                    const optionPrice = parseFloat(product.discount_price || product.base_price) + parseFloat(v.price_adjustment || 0);
+                                    return (
+                                        <option key={v.id} value={v.id}>
+                                            {v.variation_name} (PKR {optionPrice.toFixed(0)})
+                                        </option>
+                                    );
+                                })}
                             </select>
                         </div>
                     )}

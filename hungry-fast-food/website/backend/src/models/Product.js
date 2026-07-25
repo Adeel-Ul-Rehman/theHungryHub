@@ -82,10 +82,23 @@ class Product {
         const offset = filters.offset || 0;
 
         const result = await query(
-            `SELECT p.*, c.name as category_name
+            `SELECT p.*, c.name as category_name,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', pv.id,
+              'variation_type', pv.variation_type,
+              'variation_name', pv.variation_name,
+              'price_adjustment', pv.price_adjustment,
+              'is_default', pv.is_default
+            ) ORDER BY pv.id
+          ) FILTER (WHERE pv.id IS NOT NULL), '[]'
+        ) as variations
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
+       LEFT JOIN product_variations pv ON p.id = pv.product_id
        ${whereClause}
+       GROUP BY p.id, c.name
        ORDER BY p.display_order ASC, p.name ASC
        LIMIT $${index++} OFFSET $${index++}`,
             [...values, limit, offset]
