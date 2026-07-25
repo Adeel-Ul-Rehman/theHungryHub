@@ -1,13 +1,9 @@
-import DOMPurify from 'dompurify';
-import { JSDOM } from 'jsdom';
-
-const window = new JSDOM('').window;
-const purify = DOMPurify(window);
+import filterXSS from 'xss';
 
 // Recursively sanitize an object or array
 const sanitizeObject = (obj) => {
     if (typeof obj === 'string') {
-        return purify.sanitize(obj);
+        return filterXSS(obj);
     }
     
     if (Array.isArray(obj)) {
