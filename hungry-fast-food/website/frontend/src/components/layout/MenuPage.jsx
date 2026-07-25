@@ -119,7 +119,7 @@ export default function MenuPage() {
                         {/* Product Grid / Deals Grid */}
                         {isDealsCategorySelected() ? (
                             deals.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                                     {deals.map(deal => (
                                         <div
                                             key={deal.id}
@@ -209,7 +209,7 @@ export default function MenuPage() {
                             <>
                                 {/* All products grid */}
                                 {filteredProducts.length > 0 ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                                         {filteredProducts.map(product => (
                                             <ProductCard key={product.id} product={product} />
                                         ))}
@@ -232,7 +232,7 @@ export default function MenuPage() {
                                         <h2 className="font-heading font-bold text-xl text-text-primary flex items-center gap-2">
                                             🎁 Value Combo Deals
                                         </h2>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                                             {deals.map(deal => (
                                                 <div
                                                     key={deal.id}
