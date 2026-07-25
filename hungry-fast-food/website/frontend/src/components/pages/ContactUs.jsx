@@ -65,19 +65,19 @@ export default function ContactUs() {
                             Contact Information
                         </h2>
 
-                        <div className="space-y-4 text-sm">
+                        <div className="space-y-4 text-[13px] sm:text-sm">
                             {/* Address */}
-                            <div className="flex items-start gap-4">
-                                <span className="p-3 bg-orange-50 rounded-xl text-primary text-lg flex items-center justify-center shrink-0">
+                            <div className="flex items-start gap-3 sm:gap-4">
+                                <span className="p-2 sm:p-3 bg-orange-50 rounded-xl text-primary text-base sm:text-lg flex items-center justify-center shrink-0">
                                     <FaMapMarkerAlt />
                                 </span>
                                 <div>
-                                    <h4 className="font-bold text-text-primary">Our Location</h4>
+                                    <h4 className="font-bold text-text-primary text-xs sm:text-sm">Our Location</h4>
                                     <a
                                         href="https://maps.app.goo.gl/34HTbGLe8NDxXcKBA"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-text-secondary hover:text-primary transition-colors mt-0.5 block"
+                                        className="text-text-secondary hover:text-primary transition-colors mt-0.5 block text-[11px] sm:text-[13px] md:text-sm"
                                     >
                                         Zaki Plaza, Muslim Town, Rawalpindi, Pakistan
                                     </a>
@@ -85,30 +85,30 @@ export default function ContactUs() {
                             </div>
 
                             {/* Phone */}
-                            <div className="flex items-start gap-4">
-                                <span className="p-3 bg-orange-50 rounded-xl text-primary text-lg flex items-center justify-center shrink-0">
+                            <div className="flex items-start gap-3 sm:gap-4">
+                                <span className="p-2 sm:p-3 bg-orange-50 rounded-xl text-primary text-base sm:text-lg flex items-center justify-center shrink-0">
                                     <FaPhoneAlt />
                                 </span>
                                 <div>
-                                    <h4 className="font-bold text-text-primary">Phone Number</h4>
-                                    <a href="tel:03360357333" className="text-text-secondary hover:text-primary transition-colors mt-0.5 block">
+                                    <h4 className="font-bold text-text-primary text-xs sm:text-sm">Phone Number</h4>
+                                    <a href="tel:03360357333" className="text-text-secondary hover:text-primary transition-colors mt-0.5 block whitespace-nowrap text-[11px] sm:text-[13px] md:text-sm">
                                         0336-0357333
                                     </a>
                                 </div>
                             </div>
 
                             {/* WhatsApp */}
-                            <div className="flex items-start gap-4">
-                                <span className="p-3 bg-orange-50 rounded-xl text-primary text-lg flex items-center justify-center shrink-0">
+                            <div className="flex items-start gap-3 sm:gap-4">
+                                <span className="p-2 sm:p-3 bg-orange-50 rounded-xl text-primary text-base sm:text-lg flex items-center justify-center shrink-0">
                                     <FaWhatsapp />
                                 </span>
                                 <div>
-                                    <h4 className="font-bold text-text-primary">WhatsApp</h4>
+                                    <h4 className="font-bold text-text-primary text-xs sm:text-sm">WhatsApp</h4>
                                     <a
                                         href="https://wa.me/923391191147"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-text-secondary hover:text-primary transition-colors mt-0.5 block font-semibold text-green-600"
+                                        className="text-text-secondary hover:text-primary transition-colors mt-0.5 block font-semibold text-green-600 whitespace-nowrap text-[11px] sm:text-[13px] md:text-sm"
                                     >
                                         +92 3391191147 (Chat Now)
                                     </a>
@@ -116,13 +116,13 @@ export default function ContactUs() {
                             </div>
 
                             {/* Email */}
-                            <div className="flex items-start gap-4">
-                                <span className="p-3 bg-orange-50 rounded-xl text-primary text-lg flex items-center justify-center shrink-0">
+                            <div className="flex items-start gap-3 sm:gap-4">
+                                <span className="p-2 sm:p-3 bg-orange-50 rounded-xl text-primary text-base sm:text-lg flex items-center justify-center shrink-0">
                                     <FaEnvelope />
                                 </span>
                                 <div>
-                                    <h4 className="font-bold text-text-primary">Email Support</h4>
-                                    <a href="mailto:thehungryhub26@gmail.com" className="text-text-secondary hover:text-primary transition-colors mt-0.5 block">
+                                    <h4 className="font-bold text-text-primary text-xs sm:text-sm">Email Support</h4>
+                                    <a href="mailto:thehungryhub26@gmail.com" className="text-text-secondary hover:text-primary transition-colors mt-0.5 block break-all text-[11px] sm:text-[12px] md:text-sm">
                                         thehungryhub26@gmail.com
                                     </a>
                                 </div>

@@ -72,7 +72,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-black opacity-10"></div>
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                     <div className="space-y-6 text-center md:text-left">
-                        <span className="inline-flex items-center whitespace-nowrap bg-white text-primary text-[10px] sm:text-xs font-extrabold uppercase px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-full tracking-wide shadow-sm">
+                        <span className="inline-flex items-center bg-white text-primary text-[9px] sm:text-xs font-extrabold uppercase px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full tracking-wide shadow-sm">
                             🚀 Super Fast Delivery in Rawalpindi
                         </span>
                         <h1 className="font-heading font-black text-3xl sm:text-4xl md:text-6xl leading-tight">
@@ -101,7 +101,7 @@ export default function HomePage() {
             <section className="space-y-6">
                 <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
                     <div>
-                        <h2 className="font-heading font-extrabold text-2xl md:text-3xl text-text-primary flex items-center gap-2">
+                        <h2 className="font-heading font-extrabold text-xl sm:text-2xl md:text-3xl text-text-primary flex items-center gap-2">
                             🎁 Value Combo Deals
                         </h2>
                         <p className="text-text-secondary text-sm">Scroll through our exclusive promotional bundles</p>
@@ -118,10 +118,10 @@ export default function HomePage() {
                         {/* Left Arrow (Absolute positioned at left-most edge) */}
                         <button
                             onClick={scrollLeft}
-                            className="absolute left-[-22px] top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-white hover:bg-primary hover:text-white text-text-primary border border-gray-200 flex items-center justify-center shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 opacity-0 group-hover:opacity-100 focus:opacity-100 hidden md:flex cursor-pointer"
+                            className="absolute left-1 md:left-[-22px] top-1/2 -translate-y-1/2 z-20 w-8 h-8 md:w-11 md:h-11 rounded-full bg-white hover:bg-primary hover:text-white text-text-primary border border-gray-200 flex items-center justify-center shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 md:opacity-0 group-hover:opacity-100 focus:opacity-100 flex cursor-pointer"
                             aria-label="Scroll left"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4 md:w-5 md:h-5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                             </svg>
                         </button>
@@ -129,13 +129,13 @@ export default function HomePage() {
                         {/* Scroll Container */}
                         <div
                             ref={scrollRef}
-                            className="flex gap-5 overflow-x-auto pb-4 scroll-smooth"
+                            className="flex gap-3 sm:gap-5 overflow-x-auto pb-4 scroll-smooth"
                             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                         >
                             {allDeals.map(deal => (
                                 <div
                                     key={deal.id}
-                                    className={`relative flex-shrink-0 w-72 rounded-2xl overflow-hidden bg-white group transition-all duration-300 hover:shadow-xl cursor-pointer flex flex-col ${
+                                    className={`relative flex-shrink-0 w-[calc(50%-6px)] sm:w-72 rounded-2xl overflow-hidden bg-white group transition-all duration-300 hover:shadow-xl cursor-pointer flex flex-col ${
                                         deal.is_featured
                                             ? 'border-2 border-yellow-400 shadow-[0_0_18px_rgba(250,204,21,0.35)]'
                                             : 'border border-gray-100 shadow-md'
@@ -153,7 +153,7 @@ export default function HomePage() {
 
                                     {/* Image */}
                                     <Link to={`/deal/${deal.id}`} className="block">
-                                        <div className="relative h-44 bg-orange-50 flex items-center justify-center overflow-hidden">
+                                        <div className="relative h-28 sm:h-44 bg-orange-50 flex items-center justify-center overflow-hidden">
                                             {deal.image_url ? (
                                                 <img
                                                     src={deal.image_url}
@@ -161,18 +161,18 @@ export default function HomePage() {
                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 />
                                             ) : (
-                                                <span className="text-6xl select-none">🎁</span>
+                                                <span className="text-4xl sm:text-6xl select-none">🎁</span>
                                             )}
-                                            <span className="absolute top-3 left-3 bg-primary text-white text-xs font-extrabold px-2.5 py-1 rounded-full shadow-md">
+                                            <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-primary text-white text-[9px] sm:text-xs font-extrabold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-md">
                                                 Deal
                                             </span>
                                             {deal.is_featured && (
-                                                <span className="absolute top-3 right-3 bg-yellow-400 text-gray-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow animate-pulse">
+                                                <span className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-yellow-400 text-gray-900 text-[8px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full shadow animate-pulse">
                                                     ⭐ Featured
                                                 </span>
                                             )}
                                             {deal.discount_price && parseFloat(deal.discount_price) < parseFloat(deal.total_price) && (
-                                                <span className="absolute bottom-3 right-3 bg-green-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow">
+                                                <span className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-green-600 text-white text-[8px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full shadow">
                                                     Save {Math.round(((parseFloat(deal.total_price) - parseFloat(deal.discount_price)) / parseFloat(deal.total_price)) * 100)}%
                                                 </span>
                                             )}
@@ -180,14 +180,14 @@ export default function HomePage() {
                                     </Link>
 
                                     {/* Content */}
-                                    <div className="p-4 flex-grow flex flex-col justify-between gap-3">
+                                    <div className="p-3 sm:p-4 flex-grow flex flex-col justify-between gap-2.5 sm:gap-3">
                                         <div>
                                             <Link to={`/deal/${deal.id}`}>
-                                                <h3 className="font-bold text-text-primary text-base leading-snug group-hover:text-primary transition-colors line-clamp-1">
+                                                <h3 className="font-bold text-text-primary text-xs sm:text-base leading-snug group-hover:text-primary transition-colors line-clamp-1">
                                                     {deal.name}
                                                 </h3>
                                             </Link>
-                                            <p className="text-text-secondary text-xs leading-relaxed line-clamp-2 mt-1">
+                                            <p className="text-text-secondary text-[10px] sm:text-xs leading-relaxed line-clamp-2 mt-0.5 sm:mt-1">
                                                 {deal.description || 'Exclusive value combo packed with flavor.'}
                                             </p>
                                         </div>
@@ -195,17 +195,17 @@ export default function HomePage() {
                                         <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-gray-50">
                                             <div className="flex flex-col">
                                                 {deal.discount_price && parseFloat(deal.discount_price) < parseFloat(deal.total_price) && (
-                                                    <span className="text-[11px] text-text-secondary line-through">
+                                                    <span className="text-[9px] sm:text-[11px] text-text-secondary line-through">
                                                         {formatPrice(deal.total_price)}
                                                     </span>
                                                 )}
-                                                <span className="text-lg font-heading font-black text-primary">
+                                                <span className="text-sm sm:text-lg font-heading font-black text-primary">
                                                     {formatPrice(deal.discount_price || deal.total_price)}
                                                 </span>
                                             </div>
                                             <button
                                                 onClick={(e) => handleQuickAdd(deal, e)}
-                                                className="bg-primary hover:bg-primary-dark text-white p-2.5 rounded-xl shadow hover:shadow-lg transition-all active:scale-95 group-hover:scale-105"
+                                                className="bg-primary hover:bg-primary-dark text-white p-2 sm:p-2.5 rounded-lg sm:rounded-xl shadow hover:shadow-lg transition-all active:scale-95 group-hover:scale-105"
                                                 title="Add to Cart"
                                             >
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
@@ -221,10 +221,10 @@ export default function HomePage() {
                         {/* Right Arrow (Absolute positioned at right-most edge) */}
                         <button
                             onClick={scrollRight}
-                            className="absolute right-[-22px] top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-white hover:bg-primary hover:text-white text-text-primary border border-gray-200 flex items-center justify-center shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 opacity-0 group-hover:opacity-100 focus:opacity-100 hidden md:flex cursor-pointer"
+                            className="absolute right-1 md:right-[-22px] top-1/2 -translate-y-1/2 z-20 w-8 h-8 md:w-11 md:h-11 rounded-full bg-white hover:bg-primary hover:text-white text-text-primary border border-gray-200 flex items-center justify-center shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 md:opacity-0 group-hover:opacity-100 focus:opacity-100 flex cursor-pointer"
                             aria-label="Scroll right"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4 md:w-5 md:h-5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                             </svg>
                         </button>

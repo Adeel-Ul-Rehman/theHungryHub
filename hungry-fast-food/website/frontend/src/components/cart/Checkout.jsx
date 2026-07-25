@@ -136,6 +136,10 @@ export default function Checkout() {
             setToast({ type: 'error', message: 'Please enter your phone number' });
             return;
         }
+        if (paymentMethod === 'jazzcash') {
+            setToast({ type: 'info', message: 'Online Payment (JazzCash) is coming soon! Please select Cash on Delivery for now.' });
+            return;
+        }
         if (orderType === 'delivery' && !deliveryAddress.trim()) {
             setToast({ type: 'error', message: 'Please enter your delivery address' });
             return;

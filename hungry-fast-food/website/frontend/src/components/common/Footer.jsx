@@ -96,33 +96,33 @@ export default function Footer() {
                     {/* Contact Column */}
                     <div>
                         <h4 className="font-heading font-bold text-lg mb-4 text-secondary">Contact Info</h4>
-                        <ul className="flex flex-col gap-3 text-gray-300 text-sm">
+                        <ul className="flex flex-col gap-3 text-gray-300 text-[13px] sm:text-sm">
                             <li className="flex items-start gap-2.5">
                                 <FaMapMarkerAlt className="text-primary mt-1 shrink-0" />
                                 <a
                                     href="https://maps.app.goo.gl/34HTbGLe8NDxXcKBA"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="hover:text-primary transition-colors text-white"
+                                    className="hover:text-primary transition-colors text-white text-[12px] sm:text-[13px] md:text-sm"
                                 >
                                     Zaki Plaza Muslim Town, Rawalpindi
                                 </a>
                             </li>
                             <li className="flex items-center gap-2.5">
                                 <FaPhoneAlt className="text-primary shrink-0" />
-                                <a href="tel:03360357333" className="hover:text-primary transition-colors text-white">
+                                <a href="tel:03360357333" className="hover:text-primary transition-colors text-white whitespace-nowrap text-[12px] sm:text-[13px] md:text-sm">
                                     0336-0357333
                                 </a>
                             </li>
                             <li className="flex items-center gap-2.5">
                                 <FaWhatsapp className="text-[#25D366] shrink-0" />
-                                <a href="https://wa.me/923391191147" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors text-white font-semibold">
+                                <a href="https://wa.me/923391191147" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors text-white font-semibold whitespace-nowrap text-[12px] sm:text-[13px] md:text-sm">
                                     +92 3391191147
                                 </a>
                             </li>
                             <li className="flex items-center gap-2.5">
                                 <FaEnvelope className="text-primary shrink-0" />
-                                <a href="mailto:thehungryhub26@gmail.com" className="hover:text-primary transition-colors text-white">
+                                <a href="mailto:thehungryhub26@gmail.com" className="hover:text-primary transition-colors text-white break-all text-[11px] sm:text-[12px] md:text-sm">
                                     thehungryhub26@gmail.com
                                 </a>
                             </li>

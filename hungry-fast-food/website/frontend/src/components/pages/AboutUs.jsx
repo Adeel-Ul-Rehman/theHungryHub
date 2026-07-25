@@ -147,21 +147,21 @@ export default function AboutUs() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
                     {/* Branch Details */}
-                    <div className="bg-white border border-gray-100 p-8 rounded-2xl shadow-md space-y-6 flex flex-col justify-between">
+                    <div className="bg-white border border-gray-100 p-6 md:p-8 rounded-2xl shadow-md space-y-6 flex flex-col justify-between">
                         <div className="space-y-4">
-                            <h3 className="font-heading font-bold text-xl text-text-primary">Rawalpindi Branch</h3>
-                            <div className="space-y-3 text-sm text-text-secondary">
+                            <h3 className="font-heading font-bold text-lg md:text-xl text-text-primary">Rawalpindi Branch</h3>
+                            <div className="space-y-3 text-[13px] sm:text-sm text-text-secondary">
                                 <p className="flex items-start gap-2.5">
                                     <FaMapMarkerAlt className="text-primary mt-1 shrink-0" />
-                                    <span>Zaki Plaza, Muslim Town, Rawalpindi, Pakistan</span>
+                                    <span className="text-[12px] sm:text-[13px] md:text-sm">Zaki Plaza, Muslim Town, Rawalpindi, Pakistan</span>
                                 </p>
                                 <p className="flex items-center gap-2.5">
                                     <FaPhoneAlt className="text-primary shrink-0" />
-                                    <span>0336-0357333</span>
+                                    <span className="whitespace-nowrap text-[12px] sm:text-[13px] md:text-sm">0336-0357333</span>
                                 </p>
                                 <p className="flex items-center gap-2.5">
                                     <FaEnvelope className="text-primary shrink-0" />
-                                    <span>thehungryhub26@gmail.com</span>
+                                    <span className="break-all text-[11px] sm:text-[12px] md:text-sm">thehungryhub26@gmail.com</span>
                                 </p>
                             </div>
                         </div>
