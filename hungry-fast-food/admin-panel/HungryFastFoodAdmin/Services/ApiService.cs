@@ -23,7 +23,7 @@ namespace HungryFastFoodAdmin.Services
         {
             _baseUrl = !string.IsNullOrEmpty(baseUrl)
                 ? baseUrl
-                : ConfigManager.GetAppSetting("ApiBaseUrl", "http://localhost:5000/api");
+                : ConfigManager.GetAppSetting("ApiBaseUrl", "https://the-hungry-hub-xi.vercel.app/api");
             _apiKey = !string.IsNullOrEmpty(apiKey)
                 ? apiKey
                 : ConfigManager.GetAppSetting("AdminApiKey", "your-admin-api-key-from-env");
@@ -596,7 +596,7 @@ namespace HungryFastFoodAdmin.Services
         {
             try
             {
-                var response = await _client.GetAsync($"{_baseUrl}/sync/status");
+                var response = await _client.GetAsync($"{_baseUrl}/admin/sync/status");
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
