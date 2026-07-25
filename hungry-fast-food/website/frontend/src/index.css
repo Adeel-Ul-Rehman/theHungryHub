@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #FDAF26;
+  --color-primary-dark: #E59807;
+  --color-secondary: #D89A1D;
+  --color-accent: #2A9D8F;
+  --color-background: #FAF9F6;
+  --color-text-primary: #35393b;
+  --color-text-secondary: #6C757D;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Poppins', 'Inter', sans-serif;
+
+  --animate-bounce-slow: bounce 2s infinite;
+  --animate-pulse-slow: pulse 3s infinite;
+  --animate-slide-up: slideUp 0.3s ease-out;
+  --animate-fade-in: fadeIn 0.5s ease-out;
+  --animate-slide-left: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes slideLeft {
+    0% {
+      transform: translateX(100%);
+    }
+
+    100% {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideUp {
+    0% {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+}
+
+@layer base {
+  :root {
+    --primary: #FDAF26;
+    --primary-dark: #E59807;
+    --secondary: #35393b;
+    --accent: #2A9D8F;
+    --background: #FAF9F6;
+    --text-primary: #35393b;
+    --text-secondary: #6C757D;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--background);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2;
+  }
+
+  .btn-outline {
+    @apply border-2 border-primary text-primary px-6 py-3 rounded-lg font-semibold hover:bg-primary hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300;
+  }
+
+  .badge {
+    @apply px-3 py-1 rounded-full text-sm font-semibold;
+  }
+
+  .badge-pending {
+    @apply px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800;
+  }
+
+  .badge-confirmed {
+    @apply px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800;
+  }
+
+  .badge-preparing {
+    @apply px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800;
+  }
+
+  .badge-ready {
+    @apply px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800;
+  }
+
+  .badge-completed {
+    @apply px-3 py-1 rounded-full text-sm font-semibold bg-green-600 text-white;
+  }
+
+  .badge-cancelled {
+    @apply px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800;
+  }
+}
+.marquee-container {
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+    width: 100%;
+}
+
+.animate-marquee {
+    display: inline-block;
+    padding-left: 100%;
+    animation: marquee 20s linear infinite;
+}
+
+@keyframes marquee {
+    0% {
+        transform: translate(0, 0);
+    }
+    100% {
+        transform: translate(-100%, 0);
+    }
+}

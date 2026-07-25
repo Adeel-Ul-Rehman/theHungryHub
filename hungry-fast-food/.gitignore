@@ -1,0 +1,39 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.example
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Build files
+dist/
+build/
+*.exe
+*.msi
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+uploads/
+qrcodes/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.sln
+*.suo
