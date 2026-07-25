@@ -57,7 +57,7 @@
 # Gatsby files
 **/.cache/
 # Comment out the next line if you want to content-manage your public path
-**/public
+# **/public
 
 # vuepress build output
 **/.vuepress/dist
