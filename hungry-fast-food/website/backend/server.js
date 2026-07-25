@@ -60,9 +60,17 @@ app.use(globalLimiter);
 app.use(xssSanitizer);
 
 // CORS configuration
+const defaultOrigins = [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://thehungryhub.vercel.app',
+    'https://thehungryhub.shop',
+    'https://www.thehungryhub.shop'
+];
+
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : ['http://localhost:3000', 'http://localhost:5173'];
+    ? [...new Set([...process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()), ...defaultOrigins])]
+    : defaultOrigins;
 
 app.use(cors({
     origin: (origin, callback) => {
