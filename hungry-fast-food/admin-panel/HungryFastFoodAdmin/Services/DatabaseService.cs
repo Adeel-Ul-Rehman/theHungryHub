@@ -995,22 +995,28 @@ namespace HungryFastFoodAdmin.Services
             using var connection = new SQLiteConnection(_connectionString);
             connection.Open();
             using var cmd = new SQLiteCommand(sql, connection);
-            using var reader = cmd.ExecuteReader();
-
-            while (reader.Read())
+            using (var reader = cmd.ExecuteReader())
             {
-                deals.Add(new Deal
+                while (reader.Read())
                 {
-                    Id = reader["Id"].ToString(),
-                    Name = reader["Name"].ToString(),
-                    Slug = reader["Slug"].ToString(),
-                    Description = reader["Description"]?.ToString(),
-                    TotalPrice = Convert.ToDecimal(reader["TotalPrice"]),
-                    DiscountPrice = reader["DiscountPrice"] != DBNull.Value ? Convert.ToDecimal(reader["DiscountPrice"]) : (decimal?)null,
-                    IsActive = Convert.ToInt32(reader["IsActive"]) == 1,
-                    IsFeatured = Convert.ToInt32(reader["IsFeatured"]) == 1,
-                    ImageUrl = reader["ImageUrl"]?.ToString()
-                });
+                    deals.Add(new Deal
+                    {
+                        Id = reader["Id"].ToString(),
+                        Name = reader["Name"].ToString(),
+                        Slug = reader["Slug"].ToString(),
+                        Description = reader["Description"]?.ToString(),
+                        TotalPrice = Convert.ToDecimal(reader["TotalPrice"]),
+                        DiscountPrice = reader["DiscountPrice"] != DBNull.Value ? Convert.ToDecimal(reader["DiscountPrice"]) : (decimal?)null,
+                        IsActive = Convert.ToInt32(reader["IsActive"]) == 1,
+                        IsFeatured = Convert.ToInt32(reader["IsFeatured"]) == 1,
+                        ImageUrl = reader["ImageUrl"]?.ToString()
+                    });
+                }
+            }
+
+            foreach (var deal in deals)
+            {
+                deal.Items = GetDealItems(deal.Id, connection);
             }
 
             return deals;
