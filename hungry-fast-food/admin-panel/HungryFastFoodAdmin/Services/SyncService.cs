@@ -28,7 +28,7 @@ namespace HungryFastFoodAdmin.Services
         // ─── State ────────────────────────────────────────────────────────────────
         private readonly DatabaseService _db;
         private readonly IApiService     _api;
-        private readonly Func<bool>      _isOnlineCheck;
+        private readonly Func<Task<bool>> _isOnlineCheck;
         private System.Threading.Timer   _orderPollTimer;
         private bool   _isSyncing;
         private bool   _lastOnlineState = false;
@@ -40,7 +40,9 @@ namespace HungryFastFoodAdmin.Services
         {
             _db              = databaseService ?? new DatabaseService();
             _api             = apiService ?? new ApiService();
-            _isOnlineCheck   = internetCheck ?? IsInternetAvailable;
+            _isOnlineCheck   = internetCheck != null 
+                ? () => Task.FromResult(internetCheck())
+                : (Func<Task<bool>>)IsInternetAvailableAsync;
             _orderPollSeconds = Convert.ToInt32(
                 ConfigManager.GetAppSetting("SyncIntervalSeconds", "30"));
         }
@@ -151,7 +153,7 @@ namespace HungryFastFoodAdmin.Services
         /// </summary>
         public async Task PerformFullSyncAsync()
         {
-            if (!_isOnlineCheck())
+            if (!await _isOnlineCheck())
             {
                 Logger.Log("⏳ Skipping Full Sync: No internet connection.");
                 return;
@@ -332,7 +334,7 @@ namespace HungryFastFoodAdmin.Services
 
             try
             {
-                bool online = _isOnlineCheck();
+                bool online = await _isOnlineCheck();
                 if (!online)
                 {
                     _lastOnlineState = false;
@@ -356,18 +358,36 @@ namespace HungryFastFoodAdmin.Services
             }
         }
 
-        private bool IsInternetAvailable()
+        private async Task<bool> IsInternetAvailableAsync()
         {
             try
             {
+                // Check if the actual backend API is reachable, not google.com
+                string baseUrl = ConfigManager.GetAppSetting("ApiBaseUrl", "https://the-hungry-hub-xi.vercel.app/api");
+                string healthUrl = baseUrl.TrimEnd('/').Replace("/api", "") + "/health";
                 using var client = new System.Net.Http.HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(5);
-                using var response = client.GetAsync("https://www.google.com").GetAwaiter().GetResult();
+                client.DefaultRequestHeaders.Add("User-Agent", "HungryFastFoodAdmin-POS");
+                client.Timeout = TimeSpan.FromSeconds(8);
+                using var response = await client.GetAsync(healthUrl);
                 return response.IsSuccessStatusCode;
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                Logger.LogError("Internet check failed via backend health, trying fallback...", ex);
+                try
+                {
+                    // Fallback to google generate_204 which is extremely fast and reliable
+                    using var client = new System.Net.Http.HttpClient();
+                    client.DefaultRequestHeaders.Add("User-Agent", "HungryFastFoodAdmin-POS");
+                    client.Timeout = TimeSpan.FromSeconds(5);
+                    using var response = await client.GetAsync("http://clients3.google.com/generate_204");
+                    return response.IsSuccessStatusCode;
+                }
+                catch (Exception ex2)
+                {
+                    Logger.LogError("Internet check fallback failed", ex2);
+                    return false;
+                }
             }
         }
 

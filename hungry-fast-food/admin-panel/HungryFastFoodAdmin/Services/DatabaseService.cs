@@ -1304,9 +1304,20 @@ namespace HungryFastFoodAdmin.Services
             cmd.Parameters.AddWithValue("@Value", value);
             cmd.ExecuteNonQuery();
 
-            // Sync Queue Hook
-            AddToSyncQueue("INSERT", "SystemSettings", key, value);
+            // Sync Queue Hook — skip local-only settings (never sync to cloud)
+            var localOnlyKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "last_menu_update", "offline_admin_email", "offline_admin_password",
+                "RememberEmail", "InitialDataQueuedForSync"
+            };
+            if (!localOnlyKeys.Contains(key))
+            {
+                // Serialize as JSON object {SettingKey, SettingValue} so backend parses both fields
+                string settingJson = JsonConvert.SerializeObject(new { SettingKey = key, SettingValue = value ?? "" });
+                AddToSyncQueue("INSERT", "SystemSettings", key, settingJson);
+            }
         }
+
 
         public Dictionary<string, string> GetSystemSettings()
         {

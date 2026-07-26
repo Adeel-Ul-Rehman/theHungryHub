@@ -70,273 +70,203 @@ export const pushSyncItems = async (req, res) => {
     }
 
     const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+    const errors = [];
+    const processed = [];
 
+    try {
         for (const item of items) {
             const { OperationType, TableName, RecordId, Payload } = item;
-            
-            // CLOUDINARY_UPLOAD is handled client-side; skip if it reaches the server
+
+            // CLOUDINARY_UPLOAD is handled client-side; skip
             if (OperationType === 'CLOUDINARY_UPLOAD') continue;
-            
-            // Map C# SQLite table name to lowercased PostgreSQL table name
+
             const postgresTable = TableName.toLowerCase();
-            
-            if (OperationType === 'DELETE') {
-                if (postgresTable === 'systemsettings' || postgresTable === 'system_settings') {
-                    await client.query(
-                        'DELETE FROM system_settings WHERE setting_key = $1',
-                        [RecordId]
-                    );
-                } else if (postgresTable === 'products') {
-                    await client.query('DELETE FROM product_variations WHERE product_id = $1', [RecordId]);
-                    await client.query('DELETE FROM products WHERE id = $1', [RecordId]);
-                } else if (postgresTable === 'deals') {
-                    await client.query('DELETE FROM deal_items WHERE deal_id = $1', [RecordId]);
-                    await client.query('DELETE FROM deals WHERE id = $1', [RecordId]);
-                } else {
-                    await client.query(
-                        `DELETE FROM ${postgresTable} WHERE id = $1`,
-                        [RecordId]
-                    );
-                }
-                continue;
-            }
 
-            if (OperationType === 'INSERT' || OperationType === 'UPDATE') {
-                const rawRecord = JSON.parse(Payload);
-                const record = pascalToSnake(rawRecord);
+            try {
+                await client.query('BEGIN');
 
-                if (postgresTable === 'systemsettings' || postgresTable === 'system_settings') {
-                    // SystemSettings table uses setting_key UNIQUE constraint
-                    await client.query(
-                        `INSERT INTO system_settings (setting_key, setting_value, updated_at)
-                         VALUES ($1, $2, CURRENT_TIMESTAMP)
-                         ON CONFLICT (setting_key)
-                         DO UPDATE SET setting_value = $2, updated_at = CURRENT_TIMESTAMP`,
-                        [record.setting_key, record.setting_value]
-                    );
-                    emitSocketEvent('settings_updated', { key: record.setting_key, value: record.setting_value });
-                } else if (postgresTable === 'products') {
-                    const variations = record.variations || [];
-                    delete record.variations; // strip to match columns
-                    delete record.category_name;
-
-                    const columns = Object.keys(record);
-                    const values = Object.values(record);
-                    const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
-                    const updateSet = columns
-                        .filter(col => col !== 'id')
-                        .map(col => `${col} = EXCLUDED.${col}`)
-                        .join(', ');
-
-                    const sql = `
-                        INSERT INTO products (${columns.join(', ')})
-                        VALUES (${placeholders})
-                        ON CONFLICT (id)
-                        DO UPDATE SET ${updateSet}
-                    `;
-                    await client.query(sql, values);
-
-                    // Sync product variations — safe upsert, delete only removed ones
-                    if (variations.length > 0) {
-                        const incomingVarIds = variations.map(v => v.id);
-                        for (const v of variations) {
-                            const vCol = Object.keys(v);
-                            const vVal = Object.values(v);
-                            const vPlaceholders = vCol.map((_, idx) => `$${idx + 1}`).join(', ');
-                            const vUpdateSet = vCol.filter(c => c !== 'id').map(c => `${c} = EXCLUDED.${c}`).join(', ');
-                            await client.query(
-                                `INSERT INTO product_variations (${vCol.join(', ')}) VALUES (${vPlaceholders}) ON CONFLICT (id) DO UPDATE SET ${vUpdateSet}`,
-                                vVal
-                            );
-                        }
-                        // Remove variations no longer in the product
-                        await client.query(
-                            'DELETE FROM product_variations WHERE product_id = $1 AND id != ALL($2::uuid[])',
-                            [RecordId, incomingVarIds]
-                        );
-                    } else {
-                        // No variations — safe to delete all (product has no deal references via variations)
+                // -- DELETE --------------------------------------------------------
+                if (OperationType === 'DELETE') {
+                    if (postgresTable === 'systemsettings' || postgresTable === 'system_settings') {
+                        await client.query('DELETE FROM system_settings WHERE setting_key = $1', [RecordId]);
+                    } else if (postgresTable === 'products') {
                         await client.query('DELETE FROM product_variations WHERE product_id = $1', [RecordId]);
+                        await client.query('DELETE FROM products WHERE id = $1', [RecordId]);
+                    } else if (postgresTable === 'deals') {
+                        await client.query('DELETE FROM deal_items WHERE deal_id = $1', [RecordId]);
+                        await client.query('DELETE FROM deals WHERE id = $1', [RecordId]);
+                    } else {
+                        await client.query(`DELETE FROM ${postgresTable} WHERE id = $1`, [RecordId]);
                     }
-                } else if (postgresTable === 'deals') {
-                    const itemsList = record.items || [];
-                    delete record.items; // strip to match columns
-
-                    const columns = Object.keys(record);
-                    const values = Object.values(record);
-                    const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
-                    const updateSet = columns
-                        .filter(col => col !== 'id')
-                        .map(col => `${col} = EXCLUDED.${col}`)
-                        .join(', ');
-
-                    const sql = `
-                        INSERT INTO deals (${columns.join(', ')})
-                        VALUES (${placeholders})
-                        ON CONFLICT (id)
-                        DO UPDATE SET ${updateSet}
-                    `;
-                    await client.query(sql, values);
-
-                    // Sync deal items
-                    await client.query('DELETE FROM deal_items WHERE deal_id = $1', [RecordId]);
-                    for (const di of itemsList) {
-                        delete di.product_name;
-                        delete di.variation_name;
-                        const diCol = Object.keys(di);
-                        const diVal = Object.values(di);
-                        const diPlaceholders = diCol.map((_, idx) => `$${idx + 1}`).join(', ');
-                        await client.query(
-                            `INSERT INTO deal_items (${diCol.join(', ')}) VALUES (${diPlaceholders})`,
-                            diVal
-                        );
-                    }
-                } else if (postgresTable === 'orders') {
-                    const orderItemsList = record.items || [];
-                    delete record.items; // strip to match columns
-
-                    const columns = Object.keys(record);
-                    const values = Object.values(record);
-                    const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
-                    const updateSet = columns
-                        .filter(col => col !== 'id')
-                        .map(col => `${col} = EXCLUDED.${col}`)
-                        .join(', ');
-
-                    const sql = `
-                        INSERT INTO orders (${columns.join(', ')})
-                        VALUES (${placeholders})
-                        ON CONFLICT (id)
-                        DO UPDATE SET ${updateSet}
-                    `;
-                    await client.query(sql, values);
-
-                    // Sync order items
-                    await client.query('DELETE FROM order_items WHERE order_id = $1', [RecordId]);
-                    for (const oi of orderItemsList) {
-                        const oiCol = Object.keys(oi);
-                        const oiVal = Object.values(oi);
-                        const oiPlaceholders = oiCol.map((_, idx) => `$${idx + 1}`).join(', ');
-                        await client.query(
-                            `INSERT INTO order_items (${oiCol.join(', ')}) VALUES (${oiPlaceholders})`,
-                            oiVal
-                        );
-                    }
-                } else {
-                    const columns = Object.keys(record);
-                    const values = Object.values(record);
-                    const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
-                    const updateSet = columns
-                        .filter(col => col !== 'id')
-                        .map(col => `${col} = EXCLUDED.${col}`)
-                        .join(', ');
-
-                    const sql = `
-                        INSERT INTO ${postgresTable} (${columns.join(', ')})
-                        VALUES (${placeholders})
-                        ON CONFLICT (id)
-                        DO UPDATE SET ${updateSet}
-                    `;
-                    await client.query(sql, values);
+                    await client.query('COMMIT');
+                    processed.push(item);
+                    continue;
                 }
+
+                // -- INSERT / UPDATE -----------------------------------------------
+                if (OperationType === 'INSERT' || OperationType === 'UPDATE') {
+
+                    // SystemSettings: RecordId IS the setting_key, Payload IS the value (plain string or JSON object)
+                    if (postgresTable === 'systemsettings' || postgresTable === 'system_settings') {
+                        let settingKey = RecordId;
+                        let settingValue = Payload || '';
+
+                        // Support legacy JSON-object payloads {SettingKey, SettingValue}
+                        try {
+                            const parsed = JSON.parse(Payload);
+                            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                                const ps = pascalToSnake(parsed);
+                                if (ps.setting_key) settingKey = ps.setting_key;
+                                if (ps.setting_value !== undefined) settingValue = String(ps.setting_value ?? '');
+                            }
+                        } catch { /* plain string value � use as-is */ }
+
+                        await client.query(
+                            `INSERT INTO system_settings (setting_key, setting_value, updated_at)
+                             VALUES ($1, $2, CURRENT_TIMESTAMP)
+                             ON CONFLICT (setting_key)
+                             DO UPDATE SET setting_value = $2, updated_at = CURRENT_TIMESTAMP`,
+                            [settingKey, String(settingValue)]
+                        );
+                        emitSocketEvent('settings_updated', { key: settingKey, value: settingValue });
+                        await client.query('COMMIT');
+                        processed.push(item);
+                        continue;
+                    }
+
+                    // All other tables: parse payload as JSON record
+                    let rawRecord;
+                    try {
+                        rawRecord = JSON.parse(Payload);
+                    } catch (parseErr) {
+                        throw new Error(`Invalid JSON payload for ${TableName}/${RecordId}: ${parseErr.message}`);
+                    }
+                    const record = pascalToSnake(rawRecord);
+
+                    if (postgresTable === 'products') {
+                        const variations = record.variations || [];
+                        delete record.variations;
+                        delete record.category_name;
+
+                        const columns = Object.keys(record);
+                        const values = Object.values(record);
+                        const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
+                        const updateSet = columns.filter(col => col !== 'id').map(col => `${col} = EXCLUDED.${col}`).join(', ');
+
+                        await client.query(
+                            `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders}) ON CONFLICT (id) DO UPDATE SET ${updateSet}`,
+                            values
+                        );
+
+                        // Sync product variations � safe upsert, delete only removed ones
+                        if (variations.length > 0) {
+                            const incomingVarIds = variations.map(v => v.id);
+                            for (const v of variations) {
+                                const vCol = Object.keys(v);
+                                const vVal = Object.values(v);
+                                const vPlaceholders = vCol.map((_, idx) => `$${idx + 1}`).join(', ');
+                                const vUpdateSet = vCol.filter(c => c !== 'id').map(c => `${c} = EXCLUDED.${c}`).join(', ');
+                                await client.query(
+                                    `INSERT INTO product_variations (${vCol.join(', ')}) VALUES (${vPlaceholders}) ON CONFLICT (id) DO UPDATE SET ${vUpdateSet}`,
+                                    vVal
+                                );
+                            }
+                            await client.query(
+                                'DELETE FROM product_variations WHERE product_id = $1 AND id != ALL($2::uuid[])',
+                                [RecordId, incomingVarIds]
+                            );
+                        } else {
+                            await client.query('DELETE FROM product_variations WHERE product_id = $1', [RecordId]);
+                        }
+
+                    } else if (postgresTable === 'deals') {
+                        const itemsList = record.items || [];
+                        delete record.items;
+
+                        const columns = Object.keys(record);
+                        const values = Object.values(record);
+                        const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
+                        const updateSet = columns.filter(col => col !== 'id').map(col => `${col} = EXCLUDED.${col}`).join(', ');
+
+                        await client.query(
+                            `INSERT INTO deals (${columns.join(', ')}) VALUES (${placeholders}) ON CONFLICT (id) DO UPDATE SET ${updateSet}`,
+                            values
+                        );
+
+                        await client.query('DELETE FROM deal_items WHERE deal_id = $1', [RecordId]);
+                        for (const di of itemsList) {
+                            delete di.product_name;
+                            delete di.variation_name;
+                            // null-ify empty variation_id to avoid UUID parse error
+                            if (di.variation_id === '') di.variation_id = null;
+                            const diCol = Object.keys(di);
+                            const diVal = Object.values(di);
+                            const diPlaceholders = diCol.map((_, idx) => `$${idx + 1}`).join(', ');
+                            await client.query(`INSERT INTO deal_items (${diCol.join(', ')}) VALUES (${diPlaceholders})`, diVal);
+                        }
+
+                    } else if (postgresTable === 'orders') {
+                        const orderItemsList = record.items || [];
+                        delete record.items;
+
+                        const columns = Object.keys(record);
+                        const values = Object.values(record);
+                        const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
+                        const updateSet = columns.filter(col => col !== 'id').map(col => `${col} = EXCLUDED.${col}`).join(', ');
+
+                        await client.query(
+                            `INSERT INTO orders (${columns.join(', ')}) VALUES (${placeholders}) ON CONFLICT (id) DO UPDATE SET ${updateSet}`,
+                            values
+                        );
+                        await client.query('DELETE FROM order_items WHERE order_id = $1', [RecordId]);
+                        for (const oi of orderItemsList) {
+                            const oiCol = Object.keys(oi);
+                            const oiVal = Object.values(oi);
+                            const oiPlaceholders = oiCol.map((_, idx) => `$${idx + 1}`).join(', ');
+                            await client.query(`INSERT INTO order_items (${oiCol.join(', ')}) VALUES (${oiPlaceholders})`, oiVal);
+                        }
+
+                    } else {
+                        // Generic upsert
+                        const columns = Object.keys(record);
+                        const values = Object.values(record);
+                        const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
+                        const updateSet = columns.filter(col => col !== 'id').map(col => `${col} = EXCLUDED.${col}`).join(', ');
+                        await client.query(
+                            `INSERT INTO ${postgresTable} (${columns.join(', ')}) VALUES (${placeholders}) ON CONFLICT (id) DO UPDATE SET ${updateSet}`,
+                            values
+                        );
+                    }
+
+                    await client.query('COMMIT');
+                    processed.push(item);
+                }
+
+            } catch (itemErr) {
+                await client.query('ROLLBACK').catch(() => {});
+                console.error(`pushSyncItems item error [${TableName}/${RecordId}]:`, itemErr.message);
+                errors.push({ table: TableName, id: RecordId, error: itemErr.message });
             }
+
+        } // end for-loop
+
+        if (errors.length > 0 && processed.length === 0) {
+            return res.status(500).json({ success: false, message: 'All items failed', errors });
         }
 
-        await client.query('COMMIT');
-        res.status(200).json({ success: true, message: 'Sync push successful' });
+        return res.status(200).json({
+            success: true,
+            message: `Synced ${processed.length} item(s)${errors.length ? `, ${errors.length} skipped with errors` : ''}`,
+            errors
+        });
+
     } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('❌ Sync Push Error:', error);
-        res.status(500).json({ success: false, message: 'Sync push failed', error: error.message });
+        console.error('pushSyncItems outer error:', error);
+        res.status(500).json({ success: false, message: error.message });
     } finally {
         client.release();
     }
 };
-
-export const pullSyncOrders = async (req, res) => {
-    try {
-        // Fetch all online orders that aren't synced to local yet
-        const ordersQuery = await pool.query(
-            `SELECT * FROM orders 
-             WHERE order_type IN ('delivery', 'takeaway') 
-               AND (is_synced = false OR is_synced IS NULL)
-             ORDER BY created_at ASC`
-        );
-
-        const orders = ordersQuery.rows;
-        const resultOrders = [];
-
-        for (const order of orders) {
-            // Fetch items for this order
-            const itemsQuery = await pool.query(
-                'SELECT * FROM order_items WHERE order_id = $1',
-                [order.id]
-            );
-            
-            order.items = itemsQuery.rows;
-            resultOrders.push(snakeToPascal(order));
-
-            // Mark this order as synced
-            await pool.query(
-                `UPDATE orders SET is_synced = true, synced_at = CURRENT_TIMESTAMP WHERE id = $1`,
-                [order.id]
-            );
-        }
-
-        res.status(200).json(resultOrders);
-    } catch (error) {
-        console.error('❌ Sync Pull Error:', error);
-        res.status(500).json({ success: false, message: 'Sync pull failed', error: error.message });
-    }
-};
-
-export const syncCategory = async (req, res) => {
-    try {
-        const raw = req.body;
-        const category = pascalToSnake(raw);
-        await pool.query(
-            `INSERT INTO categories (id, name, slug, display_order, is_active)
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (id)
-             DO UPDATE SET name = $2, slug = $3, display_order = $4, is_active = $5`,
-            [category.id, category.name, category.slug, category.display_order || 0, category.is_active !== false]
-        );
-        res.status(200).json({ success: true, message: 'Category synced successfully' });
-    } catch (error) {
-        console.error('syncCategory error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-export const updateCategorySync = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const raw = req.body;
-        const category = pascalToSnake(raw);
-        await pool.query(
-            `UPDATE categories SET name = $1, slug = $2, display_order = $3, is_active = $4 WHERE id = $5`,
-            [category.name, category.slug, category.display_order || 0, category.is_active !== false, id]
-        );
-        res.status(200).json({ success: true, message: 'Category updated successfully' });
-    } catch (error) {
-        console.error('updateCategorySync error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
-export const deleteCategorySync = async (req, res) => {
-    try {
-        const { id } = req.params;
-        await pool.query('UPDATE categories SET is_active = false WHERE id = $1', [id]);
-        res.status(200).json({ success: true, message: 'Category soft-deleted successfully' });
-    } catch (error) {
-        console.error('deleteCategorySync error:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
-
 export const syncProduct = async (req, res) => {
     const client = await pool.connect();
     try {
