@@ -136,8 +136,8 @@ export default function Checkout() {
             setToast({ type: 'error', message: 'Please enter your phone number' });
             return;
         }
-        if (paymentMethod === 'jazzcash') {
-            setToast({ type: 'info', message: 'Online Payment (JazzCash) is coming soon! Please select Cash on Delivery for now.' });
+        if (paymentMethod === 'online') {
+            setToast({ type: 'error', message: 'Online payment method is coming soon! Please select Cash on Delivery for now.' });
             return;
         }
         if (orderType === 'delivery' && !deliveryAddress.trim()) {
@@ -471,8 +471,13 @@ export default function Checkout() {
                         ))}
                     </div>
                     {paymentMethod === 'online' && (
-                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700 font-semibold flex items-center gap-2">
-                            💳 You will be prompted to complete the payment after placing the order.
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 font-bold flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                                💳 Online Payment is coming soon!
+                            </div>
+                            <div className="text-xs font-normal text-amber-700">
+                                We are currently completing our online payment integration. Please select **Cash on Delivery (COD)** to proceed with your order.
+                            </div>
                         </div>
                     )}
                 </div>
