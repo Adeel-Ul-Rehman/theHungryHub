@@ -138,16 +138,27 @@ export const pushSyncItems = async (req, res) => {
                     `;
                     await client.query(sql, values);
 
-                    // Sync product variations
-                    await client.query('DELETE FROM product_variations WHERE product_id = $1', [RecordId]);
-                    for (const v of variations) {
-                        const vCol = Object.keys(v);
-                        const vVal = Object.values(v);
-                        const vPlaceholders = vCol.map((_, idx) => `$${idx + 1}`).join(', ');
+                    // Sync product variations — safe upsert, delete only removed ones
+                    if (variations.length > 0) {
+                        const incomingVarIds = variations.map(v => v.id);
+                        for (const v of variations) {
+                            const vCol = Object.keys(v);
+                            const vVal = Object.values(v);
+                            const vPlaceholders = vCol.map((_, idx) => `$${idx + 1}`).join(', ');
+                            const vUpdateSet = vCol.filter(c => c !== 'id').map(c => `${c} = EXCLUDED.${c}`).join(', ');
+                            await client.query(
+                                `INSERT INTO product_variations (${vCol.join(', ')}) VALUES (${vPlaceholders}) ON CONFLICT (id) DO UPDATE SET ${vUpdateSet}`,
+                                vVal
+                            );
+                        }
+                        // Remove variations no longer in the product
                         await client.query(
-                            `INSERT INTO product_variations (${vCol.join(', ')}) VALUES (${vPlaceholders})`,
-                            vVal
+                            'DELETE FROM product_variations WHERE product_id = $1 AND id != ALL($2::uuid[])',
+                            [RecordId, incomingVarIds]
                         );
+                    } else {
+                        // No variations — safe to delete all (product has no deal references via variations)
+                        await client.query('DELETE FROM product_variations WHERE product_id = $1', [RecordId]);
                     }
                 } else if (postgresTable === 'deals') {
                     const itemsList = record.items || [];
@@ -352,16 +363,25 @@ export const syncProduct = async (req, res) => {
             values
         );
 
-        // Sync variations
-        await client.query('DELETE FROM product_variations WHERE product_id = $1', [product.id]);
-        for (const v of variations) {
-            const vCol = Object.keys(v);
-            const vVal = Object.values(v);
-            const vPlaceholders = vCol.map((_, idx) => `$${idx + 1}`).join(', ');
+        // Sync variations — safe upsert, delete only removed ones
+        if (variations.length > 0) {
+            const incomingVarIds = variations.map(v => v.id);
+            for (const v of variations) {
+                const vCol = Object.keys(v);
+                const vVal = Object.values(v);
+                const vPlaceholders = vCol.map((_, idx) => `$${idx + 1}`).join(', ');
+                const vUpdateSet = vCol.filter(c => c !== 'id').map(c => `${c} = EXCLUDED.${c}`).join(', ');
+                await client.query(
+                    `INSERT INTO product_variations (${vCol.join(', ')}) VALUES (${vPlaceholders}) ON CONFLICT (id) DO UPDATE SET ${vUpdateSet}`,
+                    vVal
+                );
+            }
             await client.query(
-                `INSERT INTO product_variations (${vCol.join(', ')}) VALUES (${vPlaceholders})`,
-                vVal
+                'DELETE FROM product_variations WHERE product_id = $1 AND id != ALL($2::uuid[])',
+                [product.id, incomingVarIds]
             );
+        } else {
+            await client.query('DELETE FROM product_variations WHERE product_id = $1', [product.id]);
         }
 
         await client.query('COMMIT');
@@ -589,16 +609,34 @@ export const fullSync = async (req, res) => {
                     [prod.id, prod.category_id, prod.name, prod.slug, prod.description, prod.base_price, prod.discount_price, prod.has_variations, prod.is_active, prod.is_deal, prod.image_url, prod.display_order]
                 );
                 
-                // Variations
-                await client.query('DELETE FROM product_variations WHERE product_id = $1', [prod.id]);
+                // Variations — safe upsert so deal_items FK is never broken
                 if (prod.variations && prod.variations.length > 0) {
+                    const incomingVarIds = prod.variations.map(v => v.id);
                     for (const v of prod.variations) {
                         await client.query(
                             `INSERT INTO product_variations (id, product_id, variation_type, variation_name, price_adjustment, is_default)
-                             VALUES ($1, $2, $3, $4, $5, $6)`,
+                             VALUES ($1, $2, $3, $4, $5, $6)
+                             ON CONFLICT (id) DO UPDATE
+                             SET product_id = $2, variation_type = $3, variation_name = $4, price_adjustment = $5, is_default = $6`,
                             [v.id, v.product_id, v.variation_type, v.variation_name, v.price_adjustment, v.is_default]
                         );
                     }
+                    // Only remove variations that are truly gone and NOT referenced by any deal_item
+                    await client.query(
+                        `DELETE FROM product_variations
+                         WHERE product_id = $1
+                           AND id != ALL($2::uuid[])
+                           AND id NOT IN (SELECT variation_id FROM deal_items WHERE variation_id IS NOT NULL)`,
+                        [prod.id, incomingVarIds]
+                    );
+                } else {
+                    // No variations — safe delete only if none are in deal_items
+                    await client.query(
+                        `DELETE FROM product_variations
+                         WHERE product_id = $1
+                           AND id NOT IN (SELECT variation_id FROM deal_items WHERE variation_id IS NOT NULL)`,
+                        [prod.id]
+                    );
                 }
             }
             // Mark missing as inactive
@@ -624,14 +662,14 @@ export const fullSync = async (req, res) => {
                     [deal.id, deal.name, deal.slug, deal.description, deal.total_price, deal.image_url, deal.is_active]
                 );
                 
-                // Items
+                // Items — include unit_price
                 await client.query('DELETE FROM deal_items WHERE deal_id = $1', [deal.id]);
                 if (deal.items && deal.items.length > 0) {
                     for (const item of deal.items) {
                         await client.query(
-                            `INSERT INTO deal_items (id, deal_id, product_id, variation_id, quantity)
-                             VALUES ($1, $2, $3, $4, $5)`,
-                            [item.id, item.deal_id, item.product_id, item.variation_id, item.quantity]
+                            `INSERT INTO deal_items (id, deal_id, product_id, variation_id, quantity, unit_price)
+                             VALUES ($1, $2, $3, $4, $5, $6)`,
+                            [item.id, item.deal_id, item.product_id, item.variation_id, item.quantity, item.unit_price || 0]
                         );
                     }
                 }

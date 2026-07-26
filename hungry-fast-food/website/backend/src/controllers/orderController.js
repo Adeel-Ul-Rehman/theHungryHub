@@ -5,6 +5,7 @@ import User from '../models/User.js';
 import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../services/emailService.js';
 import { generateOrderNumber, calculateDistance, checkDeliveryZone, generateGoogleMapsLink } from '../utils/validators.js';
 import { emitSocketEvent } from '../../services/socketService.js';
+import { notifyNewOrder } from '../services/pusherService.js';
 import { query } from '../config/database.js';
 
 // ============================================
@@ -207,6 +208,16 @@ export const createOrder = async (req, res) => {
             order_type,
             status: order.status || 'pending',
             created_at: order.created_at || new Date().toISOString()
+        });
+
+        // Pusher: zero-latency real-time push to POS Admin Panel
+        notifyNewOrder({
+            id: order.id,
+            order_number: orderNumber,
+            customer_name,
+            total,
+            order_type,
+            status: order.status || 'pending'
         });
 
         res.status(201).json({
