@@ -750,7 +750,8 @@ public void ShowQuantityAndAdd(Product product)
             if (sizeDialog.ShowDialog(this) == DialogResult.OK)
             {
                 var selectedVar = sizeDialog.SelectedVariation;
-                AddToCart(fullProduct, 1, selectedVar);
+                bool extraTopping = sizeDialog.IsExtraToppingSelected;
+                AddToCart(fullProduct, 1, selectedVar, extraTopping);
             }
         }
     }
@@ -761,19 +762,33 @@ public void ShowQuantityAndAdd(Product product)
     }
 }
 
-        private void AddToCart(Product product, int quantity, ProductVariation variation)
+        private void AddToCart(Product product, int quantity, ProductVariation variation, bool extraTopping = false)
         {
             string displayName = product.Name;
             decimal price = product.DiscountPrice ?? product.BasePrice;
+            string varName = variation != null ? variation.VariationName : null;
 
             if (variation != null)
             {
-                displayName = $"{product.Name} ({variation.VariationName})";
-                price += variation.PriceAdjustment;
+                if (extraTopping)
+                {
+                    varName = $"{variation.VariationName} (Extra Topping)";
+                    decimal toppingCost = 0;
+                    if (variation.VariationName.Equals("S", StringComparison.OrdinalIgnoreCase)) toppingCost = 100;
+                    else if (variation.VariationName.Equals("M", StringComparison.OrdinalIgnoreCase)) toppingCost = 150;
+                    else if (variation.VariationName.Equals("L", StringComparison.OrdinalIgnoreCase)) toppingCost = 200;
+                    else if (variation.VariationName.Equals("XL", StringComparison.OrdinalIgnoreCase)) toppingCost = 300;
+                    price += variation.PriceAdjustment + toppingCost;
+                }
+                else
+                {
+                    price += variation.PriceAdjustment;
+                }
+                displayName = $"{product.Name} ({varName})";
             }
 
             var existing = _cartItems.FirstOrDefault(c => c.ProductId == product.Id &&
-                                                          c.VariationName == (variation != null ? variation.VariationName : null));
+                                                          c.VariationName == varName);
             if (existing != null)
             {
                 existing.Quantity += quantity;
@@ -784,7 +799,7 @@ public void ShowQuantityAndAdd(Product product)
                 {
                     ProductId = product.Id,
                     ProductName = displayName,
-                    VariationName = variation != null ? variation.VariationName : null,
+                    VariationName = varName,
                     UnitPrice = price,
                     Quantity = quantity,
                     IsFromDeal = product.IsDeal,

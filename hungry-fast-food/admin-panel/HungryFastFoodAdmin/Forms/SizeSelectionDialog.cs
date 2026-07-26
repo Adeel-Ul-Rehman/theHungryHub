@@ -11,6 +11,7 @@ namespace HungryFastFoodAdmin.Forms
     public class SizeSelectionDialog : Form
     {
         public ProductVariation SelectedVariation { get; private set; }
+        public bool IsExtraToppingSelected { get; private set; }
         private Product _product;
 
         public SizeSelectionDialog(Product product)
@@ -22,7 +23,8 @@ namespace HungryFastFoodAdmin.Forms
 
         private void InitializeComponent()
         {
-            this.Size = new Size(400, 260);
+            bool isPizza = _product.Name.ToLower().Contains("pizza") || (_product.CategoryId != null && _product.CategoryId.ToLower().Contains("pizza"));
+            this.Size = new Size(400, isPizza ? 310 : 260);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.None;
             this.BackColor = Color.FromArgb(250, 249, 246);
@@ -30,6 +32,7 @@ namespace HungryFastFoodAdmin.Forms
 
         private void SetupUI()
         {
+            bool isPizza = _product.Name.ToLower().Contains("pizza") || (_product.CategoryId != null && _product.CategoryId.ToLower().Contains("pizza"));
             this.Paint += (s, e) =>
             {
                 var g = e.Graphics;
@@ -67,6 +70,21 @@ namespace HungryFastFoodAdmin.Forms
             };
             this.Controls.Add(flowButtons);
 
+            CheckBox chkExtraTopping = null;
+            if (isPizza)
+            {
+                chkExtraTopping = new CheckBox
+                {
+                    Text = "Add Extra Topping (+100 S, +150 M, +200 L, +300 XL)",
+                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(230, 57, 70),
+                    Location = new Point(25, 200),
+                    Size = new Size(350, 30),
+                    Cursor = Cursors.Hand
+                };
+                this.Controls.Add(chkExtraTopping);
+            }
+
             foreach (var v in _product.Variations)
             {
                 var btn = new Button
@@ -86,6 +104,7 @@ namespace HungryFastFoodAdmin.Forms
                 btn.Click += (s, e) =>
                 {
                     SelectedVariation = v;
+                    IsExtraToppingSelected = chkExtraTopping != null && chkExtraTopping.Checked;
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 };
@@ -97,7 +116,7 @@ namespace HungryFastFoodAdmin.Forms
             {
                 Text = "Cancel",
                 Size = new Size(120, 36),
-                Location = new Point(140, 205),
+                Location = new Point(140, isPizza ? 250 : 205),
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 BackColor = Color.FromArgb(200, 200, 200),
                 ForeColor = Color.FromArgb(53, 57, 59),

@@ -14,10 +14,31 @@ export default function ProductDetailPage() {
 
     const [product, setProduct] = useState(null);
     const [selectedVariation, setSelectedVariation] = useState(null);
+    const [extraTopping, setExtraTopping] = useState(false);
     const [price, setPrice] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [addedToCart, setAddedToCart] = useState(false);
+
+    const isPizza = product?.name?.toLowerCase().includes('pizza');
+
+    const getToppingCost = (varName) => {
+        if (!varName) return 0;
+        const name = varName.toUpperCase();
+        if (name === 'S') return 100;
+        if (name === 'M') return 150;
+        if (name === 'L') return 200;
+        if (name === 'XL') return 300;
+        return 0;
+    };
+
+    const updatePrice = (variation, withTopping = false) => {
+        if (!product) return;
+        const base = parseFloat(product.discount_price || product.base_price);
+        const adjustment = parseFloat(variation?.price_adjustment || 0);
+        const topping = withTopping ? getToppingCost(variation?.variation_name) : 0;
+        setPrice(base + adjustment + topping);
+    };
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -27,6 +48,7 @@ export default function ProductDetailPage() {
                 if (response.success && response.data) {
                     const p = response.data;
                     setProduct(p);
+                    setExtraTopping(false);
                     if (p.variations && p.variations.length > 0) {
                         const def = p.variations.find(v => v.is_default) || p.variations[0];
                         setSelectedVariation(def);
@@ -47,15 +69,24 @@ export default function ProductDetailPage() {
         fetchProduct();
     }, [id]);
 
+    useEffect(() => {
+        if (product && product.variations && product.variations.length > 0 && selectedVariation) {
+            updatePrice(selectedVariation, extraTopping);
+        }
+    }, [selectedVariation, extraTopping, product]);
+
     const handleVariationChange = (variation) => {
         setSelectedVariation(variation);
-        const base = parseFloat(product.discount_price || product.base_price);
-        setPrice(base + parseFloat(variation.price_adjustment || 0));
     };
 
     const handleAddToCart = () => {
+        const finalVarName = extraTopping 
+            ? `${selectedVariation.variation_name} (Extra Topping)` 
+            : (selectedVariation ? selectedVariation.variation_name : null);
         const cartItem = {
-            id: selectedVariation ? `${product.id}-${selectedVariation.id}` : product.id,
+            id: selectedVariation 
+                ? `${product.id}-${selectedVariation.id}${extraTopping ? '-topping' : ''}` 
+                : product.id,
             product_id: product.id,
             name: product.name,
             price: parseFloat(price),
@@ -63,7 +94,7 @@ export default function ProductDetailPage() {
             is_deal: false,
             quantity: 1,
             variation_id: selectedVariation ? selectedVariation.id : null,
-            variation_name: selectedVariation ? selectedVariation.variation_name : null,
+            variation_name: finalVarName,
         };
         addToCart(cartItem);
         setAddedToCart(true);
@@ -175,8 +206,24 @@ export default function ProductDetailPage() {
                         </div>
                     )}
 
+                    {/* Extra Topping Checkbox (Only for Pizzas) */}
+                    {isPizza && selectedVariation && (
+                        <div className="py-4 border-t border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h4 className="text-sm font-bold text-text-primary uppercase tracking-wider">Extra Topping</h4>
+                                <p className="text-xs text-text-secondary mt-0.5">Add extra cheese & toppings (+{getToppingCost(selectedVariation.variation_name)} PKR)</p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={extraTopping}
+                                onChange={(e) => setExtraTopping(e.target.checked)}
+                                className="w-6 h-6 accent-primary cursor-pointer rounded-lg border-gray-300 focus:ring-primary"
+                            />
+                        </div>
+                    )}
+
                     {/* Divider */}
-                    <div className="border-t border-gray-100"></div>
+                    {!isPizza && <div className="border-t border-gray-100"></div>}
 
                     {/* Add to Cart Button */}
                     <div className="flex flex-col sm:flex-row gap-3">

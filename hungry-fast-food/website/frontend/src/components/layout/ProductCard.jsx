@@ -8,25 +8,46 @@ import { formatPrice } from '../../utils/helpers';
 export default function ProductCard({ product }) {
     const { addToCart } = useCart();
     const [selectedVariation, setSelectedVariation] = useState(null);
+    const [extraTopping, setExtraTopping] = useState(false);
     const [price, setPrice] = useState(product.base_price);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalQuantity, setModalQuantity] = useState(1);
+
+    const isPizza = product.name.toLowerCase().includes('pizza');
+
+    const getToppingCost = (varName) => {
+        if (!varName) return 0;
+        const name = varName.toUpperCase();
+        if (name === 'S') return 100;
+        if (name === 'M') return 150;
+        if (name === 'L') return 200;
+        if (name === 'XL') return 300;
+        return 0;
+    };
+
+    const updatePrice = (variation, withTopping = false) => {
+        const base = parseFloat(product.discount_price || product.base_price);
+        const adjustment = parseFloat(variation?.price_adjustment || 0);
+        const topping = withTopping ? getToppingCost(variation?.variation_name) : 0;
+        setPrice(base + adjustment + topping);
+    };
 
     useEffect(() => {
         if (product.variations && product.variations.length > 0) {
             const defaultVar = product.variations.find(v => v.is_default) || product.variations[0];
             setSelectedVariation(defaultVar);
-            updatePrice(defaultVar);
+            setExtraTopping(false);
+            updatePrice(defaultVar, false);
         } else {
             setPrice(product.discount_price || product.base_price);
         }
     }, [product]);
 
-    const updatePrice = (variation) => {
-        const base = parseFloat(product.discount_price || product.base_price);
-        const adjustment = parseFloat(variation?.price_adjustment || 0);
-        setPrice(base + adjustment);
-    };
+    useEffect(() => {
+        if (product.variations && product.variations.length > 0 && selectedVariation) {
+            updatePrice(selectedVariation, extraTopping);
+        }
+    }, [selectedVariation, extraTopping, product]);
 
     const handleAddToCart = (e) => {
         e.preventDefault();
@@ -199,6 +220,21 @@ export default function ProductCard({ product }) {
                             </div>
                         </div>
 
+                        {/* Extra Topping Checkbox (Only for Pizzas) */}
+                        {isPizza && selectedVariation && (
+                            <div className="pt-2 border-t border-gray-150 flex items-center justify-between">
+                                <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
+                                    Extra Topping (+{getToppingCost(selectedVariation.variation_name)} PKR)
+                                </span>
+                                <input
+                                    type="checkbox"
+                                    checked={extraTopping}
+                                    onChange={(e) => setExtraTopping(e.target.checked)}
+                                    className="w-5 h-5 accent-primary cursor-pointer rounded-lg border-gray-300 focus:ring-primary"
+                                />
+                            </div>
+                        )}
+
                         {/* Quantity Selector */}
                         <div className="flex items-center justify-between pt-2 border-t border-gray-150">
                             <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
@@ -236,8 +272,11 @@ export default function ProductCard({ product }) {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                const finalVarName = extraTopping 
+                                    ? `${selectedVariation.variation_name} (Extra Topping)` 
+                                    : selectedVariation.variation_name;
                                 const cartItem = {
-                                    id: `${product.id}-${selectedVariation.id}`,
+                                    id: `${product.id}-${selectedVariation.id}${extraTopping ? '-topping' : ''}`,
                                     product_id: product.id,
                                     name: product.name,
                                     price: parseFloat(price),
@@ -245,11 +284,12 @@ export default function ProductCard({ product }) {
                                     is_deal: false,
                                     quantity: modalQuantity,
                                     variation_id: selectedVariation.id,
-                                    variation_name: selectedVariation.variation_name,
+                                    variation_name: finalVarName,
                                 };
                                 addToCart(cartItem);
                                 setIsModalOpen(false);
                                 setModalQuantity(1); // Reset quantity
+                                setExtraTopping(false); // Reset checkbox
                             }}
                             className="w-full btn-primary py-4 text-center font-bold text-sm tracking-wide rounded-2xl shadow-lg shadow-orange-100/50 block"
                         >
