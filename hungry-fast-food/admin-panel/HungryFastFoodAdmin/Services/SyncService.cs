@@ -1,8 +1,16 @@
 // E:\hungryHub\hungry-fast-food\admin-panel\HungryFastFoodAdmin\Services\SyncService.cs
+//
+// Event-driven sync strategy:
+//   - Admin panel changes (add/edit/delete product/category/deal/settings) are pushed
+//     immediately when they happen via DatabaseService.AddToSyncQueue → FlushSyncQueueAsync.
+//   - The periodic timer ONLY polls for new incoming orders from the website.
+//     No full-sync or timestamp comparison runs automatically.
+//   - Full sync can still be triggered manually (e.g. "Sync Now" button on startup).
 
 using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,10 +29,10 @@ namespace HungryFastFoodAdmin.Services
         private readonly DatabaseService _db;
         private readonly IApiService     _api;
         private readonly Func<bool>      _isOnlineCheck;
-        private System.Threading.Timer _timer;
-        private bool    _isSyncing;
-        private bool    _lastOnlineState = false;
-        private readonly int _intervalSeconds;
+        private System.Threading.Timer   _orderPollTimer;
+        private bool   _isSyncing;
+        private bool   _lastOnlineState = false;
+        private readonly int _orderPollSeconds;
         public bool IsSyncing => _isSyncing;
 
         // ─── Constructor ──────────────────────────────────────────────────────────
@@ -33,47 +41,52 @@ namespace HungryFastFoodAdmin.Services
             _db              = databaseService ?? new DatabaseService();
             _api             = apiService ?? new ApiService();
             _isOnlineCheck   = internetCheck ?? IsInternetAvailable;
-            _intervalSeconds = Convert.ToInt32(
+            _orderPollSeconds = Convert.ToInt32(
                 ConfigManager.GetAppSetting("SyncIntervalSeconds", "30"));
         }
 
         // ─── Public API ───────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Starts the lightweight order-polling timer.
+        /// This is the ONLY automatic background task. Admin panel changes sync themselves
+        /// immediately via DatabaseService.FlushSyncQueueAsync — no timer needed for that.
+        /// </summary>
         public void StartAutoSync()
         {
-            _timer = new System.Threading.Timer(
-                async _ => await RunSyncCycle(),
+            _orderPollTimer = new System.Threading.Timer(
+                async _ => await PollOrdersAsync(),
                 null,
-                TimeSpan.FromSeconds(5),          // first run after 5s
-                TimeSpan.FromSeconds(_intervalSeconds)
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(_orderPollSeconds)
             );
-            Logger.Log($"✅ Auto-sync started (every {_intervalSeconds}s)");
+            Logger.Log($"✅ Auto-sync started (every {_orderPollSeconds}s)");
         }
 
         public void StopAutoSync()
         {
-            _timer?.Dispose();
+            _orderPollTimer?.Dispose();
             Logger.Log("⏹ Auto-sync stopped");
         }
 
-        /// <summary>Manual trigger from UI or on-startup.</summary>
+        /// <summary>Manual trigger: flush any pending queue items AND pull orders.</summary>
         public async Task SyncNow()
         {
-            await RunSyncCycle();
+            await _db.FlushSyncQueueAsync();
+            await PollOrdersAsync();
         }
 
-        // Adds a sync operation to SyncLogs table
+        // Kept for compatibility — delegates to DatabaseService
         public void AddToSyncQueue(string operationType, string entityId, string entityType, string data)
         {
-            _db.AddSyncLog(operationType, entityId, entityType, data);
+            _db.AddToSyncQueue(operationType, entityType, entityId, data);
         }
 
-        // Updates product availability locally and queues sync operation
+        // Updates product availability locally and immediately syncs to cloud
         public void UpdateProductStatus(string productId, bool isActive)
         {
             try
             {
-                // Update local database first (offline-first)
                 string sql = "UPDATE Products SET IsActive = @IsActive WHERE Id = @Id";
                 using (var connection = new SQLiteConnection($"Data Source={_db.GetDatabasePath()};Version=3;"))
                 {
@@ -83,10 +96,7 @@ namespace HungryFastFoodAdmin.Services
                     cmd.Parameters.AddWithValue("@Id", productId);
                     cmd.ExecuteNonQuery();
                 }
-
-                Logger.Log($"💾 Local product availability updated: Product {productId} is {(isActive ? "Available" : "Unavailable")}");
-
-                // Now queue the sync operation (Smart Sync)
+                Logger.Log($"💾 Local product availability updated: {productId} → {(isActive ? "Available" : "Unavailable")}");
                 _db.AddToSyncQueue("UPDATE", "Products", productId, "");
             }
             catch (Exception ex)
@@ -95,14 +105,14 @@ namespace HungryFastFoodAdmin.Services
             }
         }
 
-        // Uploads image to Cloudinary with retry (3 attempts)
+        // Image upload with retry — unchanged
         public async Task<string> UploadImageToCloudinary(string imagePath)
         {
-            if (string.IsNullOrEmpty(imagePath) || 
-                imagePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+            if (string.IsNullOrEmpty(imagePath) ||
+                imagePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 imagePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                return imagePath; // Already uploaded or empty URL
+                return imagePath;
             }
 
             var cloudinary = CreateCloudinaryService();
@@ -113,32 +123,32 @@ namespace HungryFastFoodAdmin.Services
             {
                 try
                 {
-                    Logger.Log($"☁️ [Cloudinary Upload] Uploading image: {imagePath} (Attempt {i}/{attempts})");
+                    Logger.Log($"☁️ [Cloudinary] Uploading: {imagePath} (Attempt {i}/{attempts})");
                     string secureUrl = await cloudinary.UploadImageAsync(imagePath);
                     if (!string.IsNullOrEmpty(secureUrl))
                     {
-                        Logger.Log($"✅ [Cloudinary Upload] Successfully uploaded to Cloudinary: {secureUrl}");
+                        Logger.Log($"✅ [Cloudinary] Uploaded: {secureUrl}");
                         return secureUrl;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError($"❌ [Cloudinary Upload] Attempt {i} failed: {ex.Message}", ex);
+                    Logger.LogError($"❌ [Cloudinary] Attempt {i} failed", ex);
                 }
-
                 if (i < attempts)
                 {
-                    Logger.Log($"⏳ [Cloudinary Upload] Retrying in {delayMs}ms...");
                     await Task.Delay(delayMs);
-                    delayMs *= 2; // exponential backoff
+                    delayMs *= 2;
                 }
             }
-
-            throw new Exception($"Failed to upload image to Cloudinary after {attempts} attempts.");
+            throw new Exception($"Failed to upload image after {attempts} attempts.");
         }
 
-        // Individual Sync methods (SyncCategory, SyncProduct, etc.) removed to simplify the Smart Sync approach
-
+        /// <summary>
+        /// Performs a full sync of all local data to the backend.
+        /// Called explicitly on startup or via "Sync Now" button — NOT on the auto-timer.
+        /// Sanitizes empty-string UUID fields to null before sending.
+        /// </summary>
         public async Task PerformFullSyncAsync()
         {
             if (!_isOnlineCheck())
@@ -151,34 +161,25 @@ namespace HungryFastFoodAdmin.Services
             {
                 Logger.Log("Performing Full System Sync...");
                 var categories = _db.GetCategories();
-                var products = _db.GetProducts();
-                var deals = _db.GetDeals();
-                var settings = _db.GetSystemSettings();
+                var products   = _db.GetProducts();
+                var deals      = _db.GetDeals();
+                var settings   = _db.GetSystemSettings();
 
-                // Ensure local images are uploaded before syncing payload
+                // Upload any local images first
                 foreach (var p in products)
                 {
                     if (!string.IsNullOrEmpty(p.ImageUrl) && !p.ImageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     {
                         string cloudUrl = await UploadImageToCloudinary(p.ImageUrl);
-                        if (!string.IsNullOrEmpty(cloudUrl))
-                        {
-                            _db.UpdateProductImageUrl(p.Id, cloudUrl);
-                            p.ImageUrl = cloudUrl;
-                        }
+                        if (!string.IsNullOrEmpty(cloudUrl)) { _db.UpdateProductImageUrl(p.Id, cloudUrl); p.ImageUrl = cloudUrl; }
                     }
                 }
-                
                 foreach (var d in deals)
                 {
                     if (!string.IsNullOrEmpty(d.ImageUrl) && !d.ImageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     {
                         string cloudUrl = await UploadImageToCloudinary(d.ImageUrl);
-                        if (!string.IsNullOrEmpty(cloudUrl))
-                        {
-                            _db.UpdateDealImageUrl(d.Id, cloudUrl);
-                            d.ImageUrl = cloudUrl;
-                        }
+                        if (!string.IsNullOrEmpty(cloudUrl)) { _db.UpdateDealImageUrl(d.Id, cloudUrl); d.ImageUrl = cloudUrl; }
                     }
                 }
 
@@ -230,26 +231,24 @@ namespace HungryFastFoodAdmin.Services
                             id = i.Id,
                             deal_id = i.DealId,
                             product_id = i.ProductId,
-                            variation_id = i.VariationId,
-                            quantity = i.Quantity
+                            // CRITICAL: send null for empty variation_id — Postgres UUID rejects ""
+                            variation_id = string.IsNullOrEmpty(i.VariationId) ? (string)null : i.VariationId,
+                            quantity   = i.Quantity,
+                            unit_price = i.UnitPrice
                         })
                     }),
                     settings = settings.Select(kvp => new
                     {
-                        setting_key = kvp.Key,
+                        setting_key   = kvp.Key,
                         setting_value = kvp.Value
                     })
                 };
 
                 var result = await _api.PushFullSync(payload);
                 if (result.Success)
-                {
                     Logger.Log("🎉 Full System Sync completed successfully!");
-                }
                 else
-                {
                     Logger.LogError($"❌ Full System Sync failed: {result.Message}", new Exception("Sync Failed"));
-                }
             }
             catch (Exception ex)
             {
@@ -257,13 +256,18 @@ namespace HungryFastFoodAdmin.Services
             }
         }
 
-        // Sync Queue removed in favor of Smart Full Sync
+        // Kept for compatibility
         public async Task ProcessSyncQueue()
         {
-            // Deprecated
+            await _db.FlushSyncQueueAsync();
         }
 
-        // Pulls new orders from Backend API, saves to local SQLite, and triggers notification
+        // ─── Order Polling ─────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Pulls new orders from the backend API and saves them locally.
+        /// Called only by the background timer.
+        /// </summary>
         public async Task SyncNewOrders()
         {
             Logger.Log("📥 Checking incremental new online orders from Neon…");
@@ -283,33 +287,26 @@ namespace HungryFastFoodAdmin.Services
             {
                 try
                 {
-                    // Conflict Resolution: Timestamp-based (newer wins)
                     var existing = _db.GetOrderById(order.Id);
                     if (existing != null)
                     {
                         DateTime existingTime = DateTime.MinValue;
-                        DateTime newTime = DateTime.MinValue;
-
+                        DateTime newTime      = DateTime.MinValue;
                         DateTime.TryParse(existing.UpdatedAt, out existingTime);
-                        DateTime.TryParse(order.UpdatedAt, out newTime);
+                        DateTime.TryParse(order.UpdatedAt,   out newTime);
 
                         if (newTime <= existingTime)
                         {
-                            Logger.Log($"⚔️ Conflict resolution: Local order #{existing.OrderNumber} is newer or same. Skipping pull.");
+                            Logger.Log($"⚔️ Conflict: local order #{existing.OrderNumber} is up-to-date. Skipping.");
                             continue;
                         }
-                        else
-                        {
-                            Logger.Log($"⚔️ Conflict resolution: Pulling newer order status #{order.OrderNumber} from website.");
-                        }
+                        Logger.Log($"⚔️ Conflict: pulling newer order #{order.OrderNumber} from website.");
                     }
 
                     if (string.IsNullOrEmpty(order.Id))
                         order.Id = Guid.NewGuid().ToString();
 
                     var items = order.Items ?? new List<OrderItem>();
-                    
-                    // Upsert order locally
                     _db.CreateOrder(order, items);
                     saved.Add(order);
                     Logger.Log($"💾 Saved/Updated online order #{order.OrderNumber} locally.");
@@ -321,45 +318,50 @@ namespace HungryFastFoodAdmin.Services
             }
 
             if (saved.Count > 0)
-            {
                 NewOrdersReceived?.Invoke(saved);
-            }
         }
 
-        // Helper to retrieve last attempt time from the database
-        private DateTime GetLastAttemptTime(string logId)
+        // ─── Private helpers ───────────────────────────────────────────────────────
+
+        /// <summary>Lightweight cycle: check internet then poll for orders only.</summary>
+        private async Task PollOrdersAsync()
         {
+            if (_isSyncing) return;
+            _isSyncing = true;
+            SyncStatusChanged?.Invoke(_lastOnlineState, "Syncing");
+
             try
             {
-                using var connection = new SQLiteConnection($"Data Source={_db.GetDatabasePath()};Version=3;");
-                connection.Open();
-                using var cmd = new SQLiteCommand("SELECT SyncedAt, CreatedAt FROM SyncLogs WHERE Id = @Id", connection);
-                cmd.Parameters.AddWithValue("@Id", logId);
-                using var reader = cmd.ExecuteReader();
-                if (reader.Read())
+                bool online = _isOnlineCheck();
+                if (!online)
                 {
-                    string val = reader["SyncedAt"] != DBNull.Value ? reader["SyncedAt"]?.ToString() : reader["CreatedAt"]?.ToString();
-                    if (DateTime.TryParse(val, out DateTime t))
-                    {
-                        return t;
-                    }
+                    _lastOnlineState = false;
+                    SyncStatusChanged?.Invoke(false, "Offline");
+                    Logger.Log("⚠️ Order poll skipped – no internet.");
+                    return;
                 }
+
+                _lastOnlineState = true;
+                await SyncNewOrders();
+                SyncStatusChanged?.Invoke(true, "Synced");
             }
-            catch {}
-            return DateTime.MinValue;
+            catch (Exception ex)
+            {
+                Logger.LogError("SyncService.PollOrdersAsync error", ex);
+                SyncStatusChanged?.Invoke(_lastOnlineState, "Failed");
+            }
+            finally
+            {
+                _isSyncing = false;
+            }
         }
 
-        protected virtual CloudinaryService CreateCloudinaryService()
-        {
-            return new CloudinaryService();
-        }
-
-        // Connectivity check
         private bool IsInternetAvailable()
         {
             try
             {
                 using var client = new System.Net.Http.HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(5);
                 using var response = client.GetAsync("https://www.google.com").GetAwaiter().GetResult();
                 return response.IsSuccessStatusCode;
             }
@@ -369,65 +371,9 @@ namespace HungryFastFoodAdmin.Services
             }
         }
 
-        // Internal timer run cycle
-        private async Task RunSyncCycle()
+        protected virtual CloudinaryService CreateCloudinaryService()
         {
-            if (_isSyncing) return;
-            _isSyncing = true;
-
-            // Trigger "Syncing" status (Yellow)
-            SyncStatusChanged?.Invoke(_lastOnlineState, "Syncing");
-
-            try
-            {
-                bool online = _isOnlineCheck();
-
-                if (!online)
-                {
-                    _lastOnlineState = false;
-                    SyncStatusChanged?.Invoke(false, "Offline");
-                    Logger.Log("⚠️ Sync skipped – no internet.");
-                    return;
-                }
-
-                _lastOnlineState = true;
-                SyncStatusChanged?.Invoke(true, "Syncing");
-
-                // ── Step 1: Sync new online orders ───────────────────────────────
-                await SyncNewOrders();
-
-                // ── Step 2: Sync dirty state (Timestamp Check) ───────────────────────
-                string localTimestampStr = _db.GetSetting("last_menu_update", "");
-                string remoteTimestampStr = await _api.GetSyncStatus();
-                
-                DateTime localTimestamp = DateTime.MinValue;
-                DateTime remoteTimestamp = DateTime.MinValue;
-                
-                DateTime.TryParse(localTimestampStr, out localTimestamp);
-                DateTime.TryParse(remoteTimestampStr, out remoteTimestamp);
-
-                if (localTimestamp > remoteTimestamp)
-                {
-                    Logger.Log($"Local menu (Updated: {localTimestamp}) is newer than Remote ({remoteTimestamp}). Pushing Full Sync.");
-                    await PerformFullSyncAsync();
-                }
-                else
-                {
-                    // No changes needed
-                }
-
-                // Completed successfully (Green)
-                SyncStatusChanged?.Invoke(true, "Synced");
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError("SyncService.RunSyncCycle error", ex);
-                SyncStatusChanged?.Invoke(_lastOnlineState, "Failed");
-            }
-            finally
-            {
-                _isSyncing = false;
-            }
+            return new CloudinaryService();
         }
     }
 }

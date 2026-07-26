@@ -7,8 +7,11 @@ using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using HungryFastFoodAdmin.Models;
 using Newtonsoft.Json;
+
 
 namespace HungryFastFoodAdmin.Services
 {
@@ -1880,9 +1883,10 @@ namespace HungryFastFoodAdmin.Services
         {
             try
             {
+                // --- Orders: instant-push order status update ---
                 if (tableName.Equals("Orders", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (operationType.Equals("UPDATE", StringComparison.OrdinalIgnoreCase))
+                    if (operationType.Equals("UPDATE", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(payload))
                     {
                         var order = JsonConvert.DeserializeObject<Order>(payload);
                         if (order != null)
@@ -1893,6 +1897,7 @@ namespace HungryFastFoodAdmin.Services
                                 {
                                     var api = new ApiService();
                                     await api.SyncOrder(order);
+                                    Logger.Log($"[OK] Order status synced to cloud: #{order.OrderNumber}");
                                 }
                                 catch (Exception ex)
                                 {
@@ -1904,18 +1909,85 @@ namespace HungryFastFoodAdmin.Services
                     return;
                 }
 
+                // --- Skip internal bookkeeping keys ---
                 if (tableName.Equals("SystemSettings", StringComparison.OrdinalIgnoreCase) && recordId == "last_menu_update")
-                {
                     return;
-                }
 
-                UpdateLocalTimestamp();
+                // --- All other changes: write to SyncQueue + push immediately ---
+                WriteSyncQueueItem(operationType, tableName, recordId, payload);
+
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(400); // brief window to batch rapid successive saves
+                        await FlushSyncQueueAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError("Sync push failed after change", ex);
+                    }
+                });
             }
             catch (Exception ex)
             {
                 Logger.LogError("AddToSyncQueue logic failed", ex);
             }
         }
+
+        private void WriteSyncQueueItem(string operationType, string tableName, string recordId, string payload)
+        {
+            try
+            {
+                const string sql = @"INSERT INTO SyncQueue (OperationType, TableName, RecordId, Payload, CreatedAt)
+                                     VALUES (@Op, @Table, @RecordId, @Payload, @CreatedAt)";
+                using var connection = new SQLiteConnection(_connectionString);
+                connection.Open();
+                using var cmd = new SQLiteCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@Op", operationType);
+                cmd.Parameters.AddWithValue("@Table", tableName);
+                cmd.Parameters.AddWithValue("@RecordId", recordId);
+                cmd.Parameters.AddWithValue("@Payload", payload ?? "");
+                cmd.Parameters.AddWithValue("@CreatedAt", DateTime.UtcNow.ToString("O"));
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("WriteSyncQueueItem failed", ex);
+            }
+        }
+
+        private static readonly SemaphoreSlim _flushLock = new SemaphoreSlim(1, 1);
+
+        public async Task FlushSyncQueueAsync()
+        {
+            if (!await _flushLock.WaitAsync(0)) return;
+            try
+            {
+                var items = GetSyncQueueItems(50);
+                if (items.Count == 0) return;
+
+                Logger.Log($"[SYNC] Flushing {items.Count} change(s) to backend...");
+                var api = new ApiService();
+                var result = await api.PushSyncItems(items);
+
+                if (result.Success)
+                {
+                    foreach (var item in items)
+                        RemoveFromSyncQueue(item.Id);
+                    Logger.Log($"[OK] {items.Count} change(s) synced to backend.");
+                }
+                else
+                {
+                    Logger.LogError($"Sync push failed: {result.Message}", new Exception(result.Message));
+                }
+            }
+            finally
+            {
+                _flushLock.Release();
+            }
+        }
+
 
         public List<SyncQueueItem> GetSyncQueueItems(int limit = 50)
 
