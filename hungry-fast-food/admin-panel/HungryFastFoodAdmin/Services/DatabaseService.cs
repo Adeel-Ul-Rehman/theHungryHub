@@ -1978,6 +1978,74 @@ namespace HungryFastFoodAdmin.Services
                 var items = GetSyncQueueItems(50);
                 if (items.Count == 0) return;
 
+                // --- Cloudinary image upload interceptor ---
+                foreach (var item in items)
+                {
+                    try
+                    {
+                        if (item.OperationType.Equals("INSERT", StringComparison.OrdinalIgnoreCase) ||
+                            item.OperationType.Equals("UPDATE", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (item.TableName.Equals("Products", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var product = JsonConvert.DeserializeObject<Product>(item.Payload);
+                                if (product != null && !string.IsNullOrEmpty(product.ImageUrl) &&
+                                    !product.ImageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
+                                    System.IO.File.Exists(product.ImageUrl))
+                                {
+                                    Logger.Log($"☁️ Found local image for product: {product.Name}. Uploading to Cloudinary...");
+                                    var cloudinary = new CloudinaryService();
+                                    string cloudUrl = await cloudinary.UploadImageAsync(product.ImageUrl);
+                                    if (!string.IsNullOrEmpty(cloudUrl))
+                                    {
+                                        Logger.Log($"✅ Uploaded: {cloudUrl}");
+                                        // Update local DB
+                                        UpdateProductImageUrl(product.Id, cloudUrl);
+                                        // Update queue payload
+                                        product.ImageUrl = cloudUrl;
+                                        item.Payload = JsonConvert.SerializeObject(product);
+                                        UpdateSyncQueuePayload(item.Id, item.Payload);
+                                    }
+                                    else
+                                    {
+                                        Logger.Log($"⚠️ Cloudinary upload failed or returned empty URL for product: {product.Name}");
+                                    }
+                                }
+                            }
+                            else if (item.TableName.Equals("Deals", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var deal = JsonConvert.DeserializeObject<Deal>(item.Payload);
+                                if (deal != null && !string.IsNullOrEmpty(deal.ImageUrl) &&
+                                    !deal.ImageUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
+                                    System.IO.File.Exists(deal.ImageUrl))
+                                {
+                                    Logger.Log($"☁️ Found local image for deal: {deal.Name}. Uploading to Cloudinary...");
+                                    var cloudinary = new CloudinaryService();
+                                    string cloudUrl = await cloudinary.UploadImageAsync(deal.ImageUrl);
+                                    if (!string.IsNullOrEmpty(cloudUrl))
+                                    {
+                                        Logger.Log($"✅ Uploaded: {cloudUrl}");
+                                        // Update local DB
+                                        UpdateDealImageUrl(deal.Id, cloudUrl);
+                                        // Update queue payload
+                                        deal.ImageUrl = cloudUrl;
+                                        item.Payload = JsonConvert.SerializeObject(deal);
+                                        UpdateSyncQueuePayload(item.Id, item.Payload);
+                                    }
+                                    else
+                                    {
+                                        Logger.Log($"⚠️ Cloudinary upload failed or returned empty URL for deal: {deal.Name}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError($"Failed to process image upload for sync item {item.Id} ({item.TableName})", ex);
+                    }
+                }
+
                 Logger.Log($"[SYNC] Flushing {items.Count} change(s) to backend...");
                 var api = new ApiService();
                 var result = await api.PushSyncItems(items);
@@ -1998,6 +2066,7 @@ namespace HungryFastFoodAdmin.Services
                 _flushLock.Release();
             }
         }
+
 
 
         public List<SyncQueueItem> GetSyncQueueItems(int limit = 50)
@@ -2034,6 +2103,25 @@ namespace HungryFastFoodAdmin.Services
             cmd.Parameters.AddWithValue("@Id", id);
             cmd.ExecuteNonQuery();
         }
+
+        public void UpdateSyncQueuePayload(int id, string payload)
+        {
+            try
+            {
+                string sql = "UPDATE SyncQueue SET Payload = @Payload WHERE Id = @Id";
+                using var connection = new SQLiteConnection(_connectionString);
+                connection.Open();
+                using var cmd = new SQLiteCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@Payload", payload);
+                cmd.Parameters.AddWithValue("@Id", id);
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Failed to update SyncQueue payload for ID {id}", ex);
+            }
+        }
+
 
         public void UpdateProductImageUrl(string productId, string imageUrl)
         {

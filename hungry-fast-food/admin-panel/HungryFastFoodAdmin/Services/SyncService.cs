@@ -350,7 +350,8 @@ namespace HungryFastFoodAdmin.Services
             catch (Exception ex)
             {
                 Logger.LogError("SyncService.PollOrdersAsync error", ex);
-                SyncStatusChanged?.Invoke(_lastOnlineState, "Failed");
+                _lastOnlineState = false;
+                SyncStatusChanged?.Invoke(false, "Failed");
             }
             finally
             {
@@ -360,36 +361,11 @@ namespace HungryFastFoodAdmin.Services
 
         private async Task<bool> IsInternetAvailableAsync()
         {
-            try
-            {
-                // Check if the actual backend API is reachable, not google.com
-                string baseUrl = ConfigManager.GetAppSetting("ApiBaseUrl", "https://the-hungry-hub-xi.vercel.app/api");
-                string healthUrl = baseUrl.TrimEnd('/').Replace("/api", "") + "/health";
-                using var client = new System.Net.Http.HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "HungryFastFoodAdmin-POS");
-                client.Timeout = TimeSpan.FromSeconds(8);
-                using var response = await client.GetAsync(healthUrl);
-                return response.IsSuccessStatusCode;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError("Internet check failed via backend health, trying fallback...", ex);
-                try
-                {
-                    // Fallback to google generate_204 which is extremely fast and reliable
-                    using var client = new System.Net.Http.HttpClient();
-                    client.DefaultRequestHeaders.Add("User-Agent", "HungryFastFoodAdmin-POS");
-                    client.Timeout = TimeSpan.FromSeconds(5);
-                    using var response = await client.GetAsync("http://clients3.google.com/generate_204");
-                    return response.IsSuccessStatusCode;
-                }
-                catch (Exception ex2)
-                {
-                    Logger.LogError("Internet check fallback failed", ex2);
-                    return false;
-                }
-            }
+            // Bypass pre-flight connectivity check to prevent false offline status due to timeouts.
+            // All API operations will naturally fail and transition to offline state if there is no internet.
+            return await Task.FromResult(true);
         }
+
 
         protected virtual CloudinaryService CreateCloudinaryService()
         {
