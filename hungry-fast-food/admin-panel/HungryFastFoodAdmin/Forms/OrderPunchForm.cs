@@ -239,16 +239,16 @@ namespace HungryFastFoodAdmin.Forms
             // Scroll button actions
             btnScrollLeft.Click += (s, e) =>
             {
-                int newVal = Math.Max(0, categoryPanel.HorizontalScroll.Value - 120);
-                categoryPanel.HorizontalScroll.Value = newVal;
-                categoryPanel.Invalidate();
+                int currentX = Math.Abs(categoryPanel.AutoScrollPosition.X);
+                int newVal = Math.Max(0, currentX - 150);
+                categoryPanel.AutoScrollPosition = new Point(newVal, 0);
             };
 
             btnScrollRight.Click += (s, e) =>
             {
-                int newVal = Math.Min(categoryPanel.HorizontalScroll.Maximum, categoryPanel.HorizontalScroll.Value + 120);
-                categoryPanel.HorizontalScroll.Value = newVal;
-                categoryPanel.Invalidate();
+                int currentX = Math.Abs(categoryPanel.AutoScrollPosition.X);
+                int newVal = currentX + 150;
+                categoryPanel.AutoScrollPosition = new Point(newVal, 0);
             };
 
             wrapper.Resize += (s, e) =>
