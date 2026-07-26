@@ -85,7 +85,7 @@ export const pushSyncItems = async (req, res) => {
             try {
                 await client.query('BEGIN');
 
-                // -- DELETE --------------------------------------------------------
+                // --- DELETE ---
                 if (OperationType === 'DELETE') {
                     if (postgresTable === 'systemsettings' || postgresTable === 'system_settings') {
                         await client.query('DELETE FROM system_settings WHERE setting_key = $1', [RecordId]);
@@ -103,7 +103,7 @@ export const pushSyncItems = async (req, res) => {
                     continue;
                 }
 
-                // -- INSERT / UPDATE -----------------------------------------------
+                // --- INSERT / UPDATE ---
                 if (OperationType === 'INSERT' || OperationType === 'UPDATE') {
 
                     // SystemSettings: RecordId IS the setting_key, Payload IS the value (plain string or JSON object)
@@ -119,7 +119,7 @@ export const pushSyncItems = async (req, res) => {
                                 if (ps.setting_key) settingKey = ps.setting_key;
                                 if (ps.setting_value !== undefined) settingValue = String(ps.setting_value ?? '');
                             }
-                        } catch { /* plain string value — use as-is */ }
+                        } catch { /* plain string value - use as-is */ }
 
                         await client.query(
                             `INSERT INTO system_settings (setting_key, setting_value, updated_at)
@@ -158,7 +158,7 @@ export const pushSyncItems = async (req, res) => {
                             values
                         );
 
-                        // Sync product variations — safe upsert, delete only removed ones
+                        // Sync product variations - safe upsert, delete only removed ones
                         if (variations.length > 0) {
                             const incomingVarIds = variations.map(v => v.id);
                             for (const v of variations) {
@@ -267,6 +267,89 @@ export const pushSyncItems = async (req, res) => {
         client.release();
     }
 };
+
+export const pullSyncOrders = async (req, res) => {
+    try {
+        // Fetch all online orders that aren't synced to local yet
+        const ordersQuery = await pool.query(
+            `SELECT * FROM orders 
+             WHERE order_type IN ('delivery', 'takeaway') 
+               AND (is_synced = false OR is_synced IS NULL)
+             ORDER BY created_at ASC`
+        );
+
+        const orders = ordersQuery.rows;
+        const resultOrders = [];
+
+        for (const order of orders) {
+            // Fetch items for this order
+            const itemsQuery = await pool.query(
+                'SELECT * FROM order_items WHERE order_id = $1',
+                [order.id]
+            );
+            
+            order.items = itemsQuery.rows;
+            resultOrders.push(snakeToPascal(order));
+
+            // Mark this order as synced
+            await pool.query(
+                `UPDATE orders SET is_synced = true, synced_at = CURRENT_TIMESTAMP WHERE id = $1`,
+                [order.id]
+            );
+        }
+
+        res.status(200).json(resultOrders);
+    } catch (error) {
+        console.error('âŒ Sync Pull Error:', error);
+        res.status(500).json({ success: false, message: 'Sync pull failed', error: error.message });
+    }
+};
+
+export const syncCategory = async (req, res) => {
+    try {
+        const raw = req.body;
+        const category = pascalToSnake(raw);
+        await pool.query(
+            `INSERT INTO categories (id, name, slug, display_order, is_active)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (id)
+             DO UPDATE SET name = $2, slug = $3, display_order = $4, is_active = $5`,
+            [category.id, category.name, category.slug, category.display_order || 0, category.is_active !== false]
+        );
+        res.status(200).json({ success: true, message: 'Category synced successfully' });
+    } catch (error) {
+        console.error('syncCategory error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const updateCategorySync = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const raw = req.body;
+        const category = pascalToSnake(raw);
+        await pool.query(
+            `UPDATE categories SET name = $1, slug = $2, display_order = $3, is_active = $4 WHERE id = $5`,
+            [category.name, category.slug, category.display_order || 0, category.is_active !== false, id]
+        );
+        res.status(200).json({ success: true, message: 'Category updated successfully' });
+    } catch (error) {
+        console.error('updateCategorySync error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const deleteCategorySync = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await pool.query('UPDATE categories SET is_active = false WHERE id = $1', [id]);
+        res.status(200).json({ success: true, message: 'Category soft-deleted successfully' });
+    } catch (error) {
+        console.error('deleteCategorySync error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 export const syncProduct = async (req, res) => {
     const client = await pool.connect();
     try {
