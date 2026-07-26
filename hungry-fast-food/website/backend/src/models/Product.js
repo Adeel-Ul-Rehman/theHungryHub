@@ -78,7 +78,7 @@ class Product {
             ? `WHERE ${conditions.join(' AND ')}`
             : '';
 
-        const limit = filters.limit || 50;
+        const limit = filters.limit || 1000;
         const offset = filters.offset || 0;
 
         const result = await query(

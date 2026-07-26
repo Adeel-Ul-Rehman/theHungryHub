@@ -192,7 +192,7 @@ export const getProducts = async (req, res) => {
             is_active,
             is_deal,
             search,
-            limit = 50,
+            limit = 1000,
             offset = 0
         } = req.query;
 
