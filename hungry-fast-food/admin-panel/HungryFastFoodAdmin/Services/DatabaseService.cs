@@ -948,26 +948,41 @@ namespace HungryFastFoodAdmin.Services
                 cmd.Parameters.AddWithValue("@CategoryId", categoryId);
             }
             
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            using (var reader = cmd.ExecuteReader())
             {
-                list.Add(new Product
+                while (reader.Read())
                 {
-                    Id = reader["Id"].ToString(),
-                    CategoryId = reader["CategoryId"]?.ToString(),
-                    Name = reader["Name"].ToString(),
-                    Slug = reader["Slug"].ToString(),
-                    Description = reader["Description"]?.ToString(),
-                    BasePrice = Convert.ToDecimal(reader["BasePrice"]),
-                    DiscountPrice = reader["DiscountPrice"] != DBNull.Value ? Convert.ToDecimal(reader["DiscountPrice"]) : (decimal?)null,
-                    HasVariations = Convert.ToInt32(reader["HasVariations"]) == 1,
-                    IsActive = Convert.ToInt32(reader["IsActive"]) == 1,
-                    IsDeal = Convert.ToInt32(reader["IsDeal"]) == 1,
-                    ImageUrl = reader["ImageUrl"]?.ToString(),
-                    DisplayOrder = Convert.ToInt32(reader["DisplayOrder"]),
-                    CategoryName = reader["CategoryName"]?.ToString()
-                });
+                    list.Add(new Product
+                    {
+                        Id = reader["Id"].ToString(),
+                        CategoryId = reader["CategoryId"]?.ToString(),
+                        Name = reader["Name"].ToString(),
+                        Slug = reader["Slug"].ToString(),
+                        Description = reader["Description"]?.ToString(),
+                        BasePrice = Convert.ToDecimal(reader["BasePrice"]),
+                        DiscountPrice = reader["DiscountPrice"] != DBNull.Value ? Convert.ToDecimal(reader["DiscountPrice"]) : (decimal?)null,
+                        HasVariations = Convert.ToInt32(reader["HasVariations"]) == 1,
+                        IsActive = Convert.ToInt32(reader["IsActive"]) == 1,
+                        IsDeal = Convert.ToInt32(reader["IsDeal"]) == 1,
+                        ImageUrl = reader["ImageUrl"]?.ToString(),
+                        DisplayOrder = Convert.ToInt32(reader["DisplayOrder"]),
+                        CategoryName = reader["CategoryName"]?.ToString()
+                    });
+                }
             }
+
+            foreach (var product in list)
+            {
+                if (product.HasVariations)
+                {
+                    product.Variations = GetProductVariations(product.Id, connection);
+                }
+                else
+                {
+                    product.Variations = new List<ProductVariation>();
+                }
+            }
+
             return list;
         }
 
