@@ -26,12 +26,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "HungryFastFoodAdmin\bin\Release\net10.0-windows\win-x64\publish\HungryFastFoodAdmin.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "HungryFastFoodAdmin\bin\Release\net10.0-windows\win-x64\publish\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "HungryFastFoodAdmin\bin\Release\net10.0-windows\win-x64\publish\logo.png"; DestDir: "{app}"; Flags: ignoreversion
-Source: "HungryFastFoodAdmin\bin\Release\net10.0-windows\win-x64\publish\HungryFastFoodAdmin.dll.config"; DestDir: "{app}"; Flags: ignoreversion
-Source: "HungryFastFoodAdmin\bin\Release\net10.0-windows\win-x64\publish\e_sqlite3.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "HungryFastFoodAdmin\bin\Release\net10.0-windows\win-x64\publish\sni.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "HungryFastFoodAdmin\bin\Release\net10.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\Hungry Hub Admin Panel"; Filename: "{app}\HungryFastFoodAdmin.exe"; IconFilename: "{app}\logo.ico"
