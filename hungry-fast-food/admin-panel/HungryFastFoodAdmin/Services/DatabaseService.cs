@@ -25,7 +25,7 @@ namespace HungryFastFoodAdmin.Services
             string dbPath = databasePath;
             if (string.IsNullOrEmpty(dbPath))
             {
-                dbPath = ConfigManager.GetAppSetting("DatabasePath", "D:\\HungryFastFood\\hungryfastfood.db");
+                dbPath = ConfigManager.GetAppSetting("DatabasePath", "C:\\HungryFastFood\\hungryfastfood.db");
             }
 
             _databasePath = dbPath;

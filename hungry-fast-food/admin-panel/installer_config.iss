@@ -27,6 +27,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "HungryFastFoodAdmin\bin\Release\net10.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "installer\hungryfastfood.db"; DestDir: "C:\HungryFastFood"; Flags: ignoreversion onlyifdoesntexist
 
 [Icons]
 Name: "{autoprograms}\Hungry Hub Admin Panel"; Filename: "{app}\HungryFastFoodAdmin.exe"; IconFilename: "{app}\logo.ico"
