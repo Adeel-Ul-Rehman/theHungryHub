@@ -30,6 +30,7 @@ export default function Checkout() {
     const [isDetectingLocation, setIsDetectingLocation] = useState(false);
     const [locationDetected, setLocationDetected] = useState(false);
     const [toast, setToast] = useState(null);
+    const [locationPrompted, setLocationPrompted] = useState(false);
     const [minOrderRequired, setMinOrderRequired] = useState(0);
     const [zoneMinOrder, setZoneMinOrder] = useState(0);
     const [zoneName, setZoneName] = useState(null);
@@ -135,6 +136,37 @@ export default function Checkout() {
         if (!customerPhone.trim()) {
             setToast({ type: 'error', message: 'Please enter your phone number' });
             return;
+        }
+
+        if (orderType === 'delivery' && (!latitude || !longitude) && !locationPrompted) {
+            const shareLocation = window.confirm(
+                "📍 Share Location for Faster Delivery:\n\nWe couldn't detect your exact GPS coordinates. Having your exact location helps our riders deliver your food hot and fresh, and generates a QR code of your location for the delivery slip.\n\nWould you like to share your current location now?"
+            );
+            if (shareLocation) {
+                setIsDetectingLocation(true);
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        setLatitude(pos.coords.latitude);
+                        setLongitude(pos.coords.longitude);
+                        setLocationDetected(true);
+                        setIsDetectingLocation(false);
+                        setLocationPrompted(true);
+                        setToast({ type: 'success', message: '📍 Location detected successfully!' });
+                        verifyDeliveryZone(pos.coords.latitude, pos.coords.longitude);
+                    },
+                    (err) => {
+                        setIsDetectingLocation(false);
+                        setLocationPrompted(true);
+                        let msg = 'Could not access location. Please check browser permissions.';
+                        if (err.code === 1) msg = 'Location permission denied.';
+                        setToast({ type: 'error', message: msg });
+                    },
+                    { timeout: 6000, maximumAge: 60000 }
+                );
+                return; // halt placing order to allow location tracking response and zone verification
+            } else {
+                setLocationPrompted(true);
+            }
         }
         if (paymentMethod === 'online') {
             setToast({ type: 'error', message: 'Online payment method is coming soon! Please select Cash on Delivery for now.' });
