@@ -606,7 +606,7 @@ namespace HungryFastFoodAdmin.Forms
             {
                 Location = new Point(xControl, y),
                 Size = new Size(300, 25),
-                Text = "D:\\HungryFastFood\\backups\\"
+                Text = "C:\\HungryFastFood\\backups\\"
             };
             y += 35;
 
@@ -808,7 +808,7 @@ namespace HungryFastFoodAdmin.Forms
                 // Load Backup Settings
                 chkAutoBackup.Checked = settings.GetValueOrDefault("auto_backup", "true") == "true";
                 nudBackupInterval.Value = decimal.Parse(settings.GetValueOrDefault("backup_interval", "24"));
-                txtBackupPath.Text = settings.GetValueOrDefault("backup_path", "D:\\HungryFastFood\\backups\\");
+                txtBackupPath.Text = settings.GetValueOrDefault("backup_path", "C:\\HungryFastFood\\backups\\");
 
                 // Load last sync time
                 string lastSync = settings.GetValueOrDefault("last_sync", "");

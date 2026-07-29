@@ -11,7 +11,7 @@ namespace HungryFastFoodAdmin
 
         static Logger()
         {
-            _logDirectory = ConfigManager.GetAppSetting("LogPath", "D:\\HungryFastFood\\logs\\");
+            _logDirectory = ConfigManager.GetAppSetting("LogPath", "C:\\HungryFastFood\\logs\\");
             try
             {
                 if (!Directory.Exists(_logDirectory))
