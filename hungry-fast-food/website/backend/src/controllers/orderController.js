@@ -91,58 +91,93 @@ export const createOrder = async (req, res) => {
         });
 
         // Check delivery zone + enforce admin-defined rules for ALL delivery orders.
-        // Delivery coordinates are required by validation, but we still guard defensively.
         let deliveryCharge = 0;
         if (order_type === 'delivery') {
-            // Enforce that a delivery location is always provided (guest, registered, or Google user)
-            if (!delivery_latitude || !delivery_longitude || !delivery_address) {
+            if (!delivery_address) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Delivery orders require a delivery address and a detected location (latitude/longitude).'
+                    message: 'Delivery orders require a delivery address.'
                 });
             }
 
-            const distance = calculateDistance(
-                parseFloat(process.env.RESTAURANT_LATITUDE || '33.5651'),
-                parseFloat(process.env.RESTAURANT_LONGITUDE || '73.0169'),
-                delivery_latitude,
-                delivery_longitude
-            );
-
-            const zoneCheck = await checkDeliveryZone(distance);
-            if (!zoneCheck.allowed) {
-                return res.status(400).json({
-                    success: false,
-                    message: zoneCheck.message
-                });
-            }
-            deliveryCharge = zoneCheck.charge || 0;
-
-            // Effective minimum order = max(zone-specific minOrder, global min_order setting)
-            let globalMinOrder = 0;
-            try {
-                const settingRes = await query(
-                    `SELECT setting_value FROM system_settings WHERE setting_key = 'min_order'`
+            // We enforce coordinates only if possible, but allow order placement if refused as last resort
+            if (delivery_latitude && delivery_longitude) {
+                const distance = calculateDistance(
+                    parseFloat(process.env.RESTAURANT_LATITUDE || '33.5651'),
+                    parseFloat(process.env.RESTAURANT_LONGITUDE || '73.0169'),
+                    delivery_latitude,
+                    delivery_longitude
                 );
-                if (settingRes.rows.length > 0) {
-                    const parsed = parseFloat(settingRes.rows[0].setting_value);
-                    if (!isNaN(parsed)) globalMinOrder = parsed;
+
+                const zoneCheck = await checkDeliveryZone(distance);
+                if (!zoneCheck.allowed) {
+                    return res.status(400).json({
+                        success: false,
+                        message: zoneCheck.message
+                    });
                 }
-            } catch (dbErr) {
-                console.warn('⚠️ Could not read global min_order setting:', dbErr.message);
-            }
+                deliveryCharge = zoneCheck.charge || 0;
 
-            const effectiveMinOrder = Math.max(zoneCheck.minOrder || 0, globalMinOrder);
+                // Effective minimum order = max(zone-specific minOrder, global min_order setting)
+                let globalMinOrder = 0;
+                try {
+                    const settingRes = await query(
+                        `SELECT setting_value FROM system_settings WHERE setting_key = 'min_order'`
+                    );
+                    if (settingRes.rows.length > 0) {
+                        const parsed = parseFloat(settingRes.rows[0].setting_value);
+                        if (!isNaN(parsed)) globalMinOrder = parsed;
+                    }
+                } catch (dbErr) {
+                    console.warn('⚠️ Could not read global min_order setting:', dbErr.message);
+                }
 
-            // Validate minimum order against admin-defined rules
-            if (effectiveMinOrder > 0 && subtotal < effectiveMinOrder) {
-                const ruleSource = zoneCheck.minOrder > 0 ? `your ${zoneCheck.zoneName}` : 'the restaurant';
-                return res.status(400).json({
-                    success: false,
-                    message: `Minimum order for ${ruleSource} is ${effectiveMinOrder} PKR. Your order subtotal is ${subtotal} PKR. Please add more items.`,
-                    minOrder: effectiveMinOrder,
-                    currentSubtotal: subtotal
-                });
+                const effectiveMinOrder = Math.max(zoneCheck.minOrder || 0, globalMinOrder);
+
+                // Validate minimum order against admin-defined rules
+                if (effectiveMinOrder > 0 && subtotal < effectiveMinOrder) {
+                    const ruleSource = zoneCheck.minOrder > 0 ? `your ${zoneCheck.zoneName}` : 'the restaurant';
+                    return res.status(400).json({
+                        success: false,
+                        message: `Minimum order for ${ruleSource} is ${effectiveMinOrder} PKR. Your order subtotal is ${subtotal} PKR. Please add more items.`,
+                        minOrder: effectiveMinOrder,
+                        currentSubtotal: subtotal
+                    });
+                }
+            } else {
+                // Last resort fallback (user refused location sharing)
+                // Determine delivery fee from dynamic zones cache fallback
+                try {
+                    const zones = await getDeliveryZones();
+                    // Find first zone with a charge > 0
+                    const chargedZone = zones.find(z => parseFloat(z.charge || z.Charge || 0) > 0);
+                    deliveryCharge = chargedZone ? parseFloat(chargedZone.charge || chargedZone.Charge) : 150;
+                } catch {
+                    deliveryCharge = 150;
+                }
+
+                // Enforce global minimum order setting if any
+                let globalMinOrder = 0;
+                try {
+                    const settingRes = await query(
+                        `SELECT setting_value FROM system_settings WHERE setting_key = 'min_order'`
+                    );
+                    if (settingRes.rows.length > 0) {
+                        const parsed = parseFloat(settingRes.rows[0].setting_value);
+                        if (!isNaN(parsed)) globalMinOrder = parsed;
+                    }
+                } catch (dbErr) {
+                    console.warn('⚠️ Could not read global min_order setting:', dbErr.message);
+                }
+
+                if (globalMinOrder > 0 && subtotal < globalMinOrder) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Minimum order for the restaurant is ${globalMinOrder} PKR. Your order subtotal is ${subtotal} PKR. Please add more items.`,
+                        minOrder: globalMinOrder,
+                        currentSubtotal: subtotal
+                    });
+                }
             }
         }
 
