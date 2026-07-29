@@ -145,16 +145,8 @@ export const createOrder = async (req, res) => {
                     });
                 }
             } else {
-                // Last resort fallback (user refused location sharing)
-                // Determine delivery fee from dynamic zones cache fallback
-                try {
-                    const zones = await getDeliveryZones();
-                    // Find first zone with a charge > 0
-                    const chargedZone = zones.find(z => parseFloat(z.charge || z.Charge || 0) > 0);
-                    deliveryCharge = chargedZone ? parseFloat(chargedZone.charge || chargedZone.Charge) : 150;
-                } catch {
-                    deliveryCharge = 150;
-                }
+                // Last resort fallback (user refused location sharing) -> Free Delivery
+                deliveryCharge = 0;
 
                 // Enforce global minimum order setting if any
                 let globalMinOrder = 0;

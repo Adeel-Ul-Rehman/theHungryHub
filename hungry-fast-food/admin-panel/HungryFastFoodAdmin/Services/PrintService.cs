@@ -309,35 +309,43 @@ namespace HungryFastFoodAdmin.Services
             }
             y += 15;
 
-            // QR Code for ALL delivery orders that have a customer-provided location
-            bool hasLocation = !string.IsNullOrEmpty(_currentOrder.DeliveryAddress) ||
-                              (_currentOrder.DeliveryLatitude.HasValue && _currentOrder.DeliveryLongitude.HasValue &&
-                               _currentOrder.DeliveryLatitude != 0 && _currentOrder.DeliveryLongitude != 0);
-
-            if (_currentOrder.OrderType.ToLower() == "delivery" && hasLocation)
+            // QR Code for delivery orders only if customer shared exact location coordinates
+            if (_currentOrder.OrderType.ToLower() == "delivery")
             {
-                string mapsUrl = "";
-                if (_currentOrder.DeliveryLatitude.HasValue && _currentOrder.DeliveryLongitude.HasValue &&
-                    _currentOrder.DeliveryLatitude != 0 && _currentOrder.DeliveryLongitude != 0)
+                bool hasCoordinates = _currentOrder.DeliveryLatitude.HasValue && 
+                                      _currentOrder.DeliveryLongitude.HasValue &&
+                                      _currentOrder.DeliveryLatitude != 0 && 
+                                      _currentOrder.DeliveryLongitude != 0;
+
+                if (hasCoordinates)
                 {
-                    mapsUrl = $"https://www.google.com/maps/search/?api=1&query={_currentOrder.DeliveryLatitude.Value},{_currentOrder.DeliveryLongitude.Value}";
+                    string mapsUrl = $"https://www.google.com/maps/search/?api=1&query={_currentOrder.DeliveryLatitude.Value},{_currentOrder.DeliveryLongitude.Value}";
+                    var qrImage = _qrService.GenerateQRCode(mapsUrl);
+                    if (qrImage != null)
+                    {
+                        // QR heading
+                        string qrHeading = "Scan for Delivery Location";
+                        float qrHeadX = (width - g.MeasureString(qrHeading, boldFont).Width) / 2;
+                        g.DrawString(qrHeading, boldFont, Brushes.Black, qrHeadX, y);
+                        y += 18;
+
+                        g.DrawImage(qrImage, new Rectangle((width - 100) / 2, y, 100, 100));
+                        y += 110;
+
+                        using (var pen = new Pen(Color.Black, 1))
+                        {
+                            g.DrawLine(pen, 10, y, rightMargin, y);
+                        }
+                        y += 15;
+                    }
                 }
                 else
                 {
-                    mapsUrl = $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(_currentOrder.DeliveryAddress ?? "")}";
-                }
-
-                var qrImage = _qrService.GenerateQRCode(mapsUrl);
-                if (qrImage != null)
-                {
-                    // QR heading
-                    string qrHeading = "Scan for Delivery Location";
-                    float qrHeadX = (width - g.MeasureString(qrHeading, boldFont).Width) / 2;
-                    g.DrawString(qrHeading, boldFont, Brushes.Black, qrHeadX, y);
-                    y += 18;
-
-                    g.DrawImage(qrImage, new Rectangle((width - 100) / 2, y, 100, 100));
-                    y += 110;
+                    // Customer refused coordinates, display notice instead of QR code
+                    string noLocText = "Customer did not share the location";
+                    float noLocX = (width - g.MeasureString(noLocText, boldFont).Width) / 2;
+                    g.DrawString(noLocText, boldFont, Brushes.Black, noLocX, y);
+                    y += 20;
 
                     using (var pen = new Pen(Color.Black, 1))
                     {

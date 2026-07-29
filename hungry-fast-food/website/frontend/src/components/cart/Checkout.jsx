@@ -157,7 +157,7 @@ export default function Checkout() {
                     (err) => {
                         setIsDetectingLocation(false);
                         setLocationPrompted(true);
-                        setDeliveryCharge(150); // fallback
+                        setDeliveryCharge(0); // fallback -> free delivery
                         let msg = 'Could not access location. Please check browser permissions.';
                         if (err.code === 1) msg = 'Location permission denied.';
                         setToast({ type: 'error', message: msg });
@@ -167,7 +167,7 @@ export default function Checkout() {
                 return; // halt placing order to allow location tracking response and zone verification
             } else {
                 setLocationPrompted(true);
-                setDeliveryCharge(150); // fallback
+                setDeliveryCharge(0); // fallback -> free delivery
             }
         }
         if (paymentMethod === 'online') {
