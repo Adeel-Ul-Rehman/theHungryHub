@@ -22,8 +22,21 @@ namespace HungryFastFoodAdmin.Services
 
         public PrintService()
         {
-            _printerName = ConfigManager.GetAppSetting("PrinterName", "EPSON TM-T20");
-            _paperWidth = Convert.ToInt32(ConfigManager.GetAppSetting("PrinterPaperWidth", "80"));
+            try
+            {
+                var db = new DatabaseService();
+                var settings = db.GetSystemSettings();
+                _printerName = settings.ContainsKey("printer_name") ? settings["printer_name"] : ConfigManager.GetAppSetting("PrinterName", "EPSON TM-T20");
+                
+                string widthStr = settings.ContainsKey("paper_width") ? settings["paper_width"] : ConfigManager.GetAppSetting("PrinterPaperWidth", "80");
+                _paperWidth = Convert.ToInt32(widthStr);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading printer settings from database, using app.config fallback: {ex.Message}");
+                _printerName = ConfigManager.GetAppSetting("PrinterName", "EPSON TM-T20");
+                _paperWidth = Convert.ToInt32(ConfigManager.GetAppSetting("PrinterPaperWidth", "80"));
+            }
             _qrService = new QRCodeService();
         }
 
