@@ -774,10 +774,11 @@ public void ShowQuantityAndAdd(Product product)
                 {
                     varName = $"{variation.VariationName} (Extra Topping)";
                     decimal toppingCost = 0;
-                    if (variation.VariationName.Equals("S", StringComparison.OrdinalIgnoreCase)) toppingCost = 100;
-                    else if (variation.VariationName.Equals("M", StringComparison.OrdinalIgnoreCase)) toppingCost = 150;
-                    else if (variation.VariationName.Equals("L", StringComparison.OrdinalIgnoreCase)) toppingCost = 200;
-                    else if (variation.VariationName.Equals("XL", StringComparison.OrdinalIgnoreCase)) toppingCost = 300;
+                    string name = variation.VariationName.ToUpper();
+                    if (name == "S" || name == "SMALL") toppingCost = 100;
+                    else if (name == "M" || name == "MEDIUM") toppingCost = 150;
+                    else if (name == "L" || name == "LARGE") toppingCost = 200;
+                    else if (name == "XL" || name == "EXTRA LARGE") toppingCost = 300;
                     price += variation.PriceAdjustment + toppingCost;
                 }
                 else

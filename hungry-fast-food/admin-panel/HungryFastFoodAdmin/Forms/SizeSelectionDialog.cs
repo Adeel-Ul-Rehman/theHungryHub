@@ -13,6 +13,8 @@ namespace HungryFastFoodAdmin.Forms
         public ProductVariation SelectedVariation { get; private set; }
         public bool IsExtraToppingSelected { get; private set; }
         private Product _product;
+        private System.Collections.Generic.Dictionary<Button, ProductVariation> _buttonVariations = 
+            new System.Collections.Generic.Dictionary<Button, ProductVariation>();
 
         public SizeSelectionDialog(Product product)
         {
@@ -75,13 +77,14 @@ namespace HungryFastFoodAdmin.Forms
             {
                 chkExtraTopping = new CheckBox
                 {
-                    Text = "Add Extra Topping (+100 S, +150 M, +200 L, +300 XL)",
-                    Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                    Text = "Add Extra Topping (Cheese & Toppings)",
+                    Font = new Font("Segoe UI", 10.5f, FontStyle.Bold),
                     ForeColor = Color.FromArgb(230, 57, 70),
                     Location = new Point(25, 200),
                     Size = new Size(350, 30),
                     Cursor = Cursors.Hand
                 };
+                chkExtraTopping.CheckedChanged += (s, e) => UpdateButtonPrices(chkExtraTopping.Checked);
                 this.Controls.Add(chkExtraTopping);
             }
 
@@ -109,6 +112,7 @@ namespace HungryFastFoodAdmin.Forms
                     this.Close();
                 };
                 
+                _buttonVariations.Add(btn, v);
                 flowButtons.Controls.Add(btn);
             }
 
@@ -130,6 +134,33 @@ namespace HungryFastFoodAdmin.Forms
                 this.Close();
             };
             this.Controls.Add(btnCancel);
+        }
+
+        private void UpdateButtonPrices(bool extraToppingChecked)
+        {
+            decimal basePrice = _product.DiscountPrice ?? _product.BasePrice;
+            foreach (var kvp in _buttonVariations)
+            {
+                var btn = kvp.Key;
+                var v = kvp.Value;
+                decimal price = basePrice + v.PriceAdjustment;
+                if (extraToppingChecked)
+                {
+                    price += GetToppingCost(v.VariationName);
+                }
+                btn.Text = $"{v.VariationName}\n(PKR {price:F0})";
+            }
+        }
+
+        private decimal GetToppingCost(string varName)
+        {
+            if (string.IsNullOrEmpty(varName)) return 0;
+            string name = varName.ToUpper();
+            if (name == "S" || name == "SMALL") return 100;
+            if (name == "M" || name == "MEDIUM") return 150;
+            if (name == "L" || name == "LARGE") return 200;
+            if (name == "XL" || name == "EXTRA LARGE") return 300;
+            return 0;
         }
 
         private GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
