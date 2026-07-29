@@ -294,14 +294,26 @@ namespace HungryFastFoodAdmin.Forms
 
             try
             {
-                if (pathOrUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
-                    pathOrUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                string localPath = ImageHelper.GetLocalImagePath(pathOrUrl);
+                if (!string.IsNullOrEmpty(localPath) && File.Exists(localPath))
                 {
-                    pbPreview.LoadAsync(pathOrUrl);
+                    pbPreview.Image = ImageHelper.LoadImage(localPath);
+                }
+                else if (pathOrUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                         pathOrUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    Task.Run(() =>
+                    {
+                        var img = ImageHelper.LoadImage(pathOrUrl);
+                        if (img != null)
+                        {
+                            this.Invoke((MethodInvoker)delegate { pbPreview.Image = img; });
+                        }
+                    });
                 }
                 else if (File.Exists(pathOrUrl))
                 {
-                    pbPreview.Image = Image.FromFile(pathOrUrl);
+                    pbPreview.Image = ImageHelper.LoadImage(pathOrUrl);
                 }
             }
             catch

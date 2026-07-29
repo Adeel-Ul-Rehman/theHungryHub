@@ -75,23 +75,7 @@ namespace HungryFastFoodAdmin.Controls
                 {
                     try
                     {
-                        Image img = null;
-                        if (ImageUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
-                            ImageUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                        {
-                            using (var client = new System.Net.Http.HttpClient())
-                            {
-                                var data = client.GetByteArrayAsync(ImageUrl).GetAwaiter().GetResult();
-                                using (var ms = new System.IO.MemoryStream(data))
-                                {
-                                    img = Image.FromStream(ms);
-                                }
-                            }
-                        }
-                        else if (System.IO.File.Exists(ImageUrl))
-                        {
-                            img = Image.FromFile(ImageUrl);
-                        }
+                        Image img = Services.ImageHelper.LoadImage(ImageUrl);
 
                         if (img != null)
                         {

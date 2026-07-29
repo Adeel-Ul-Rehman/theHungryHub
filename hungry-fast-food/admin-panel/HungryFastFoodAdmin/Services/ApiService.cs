@@ -28,7 +28,11 @@ namespace HungryFastFoodAdmin.Services
                 ? apiKey
                 : ConfigManager.GetAppSetting("AdminApiKey", "your-admin-api-key-from-env");
 
-            _client = new HttpClient
+            var handler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+            };
+            _client = new HttpClient(handler)
             {
                 Timeout = TimeSpan.FromSeconds(90)
             };

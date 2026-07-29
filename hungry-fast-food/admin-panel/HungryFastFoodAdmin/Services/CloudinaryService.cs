@@ -42,7 +42,11 @@ namespace HungryFastFoodAdmin.Services
         public CloudinaryService()
         {
             _db = new DatabaseService();
-            _client = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+            var handler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+            };
+            _client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(120) };
         }
 
         private string CalculateSha1(string input)

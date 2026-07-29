@@ -668,9 +668,7 @@ namespace HungryFastFoodAdmin.Forms
                     return;
                 }
 
-                string startDate = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
-                string endDate = DateTime.Today.ToString("yyyy-MM-dd");
-                var orders = _dbService.GetOrders(startDate: startDate, endDate: endDate);
+                var orders = _dbService.GetOrders();
 
                 // active queues show pending, preparing (baking), and dispatched statuses
                 var activeOrders = orders.Where(o =>
