@@ -23,9 +23,29 @@ namespace HungryFastFoodAdmin.Forms
             SetupUI();
         }
 
+        private bool IsPizzaProduct()
+        {
+            if (_product == null) return false;
+            if (_product.Name.ToLower().Contains("pizza")) return true;
+            if (!string.IsNullOrEmpty(_product.CategoryId))
+            {
+                try
+                {
+                    var db = new Services.DatabaseService();
+                    var category = db.GetCategoryById(_product.CategoryId);
+                    if (category != null)
+                    {
+                        return category.Name.ToLower().Contains("pizza") || category.Slug.ToLower().Contains("pizza");
+                    }
+                }
+                catch { }
+            }
+            return false;
+        }
+
         private void InitializeComponent()
         {
-            bool isPizza = _product.Name.ToLower().Contains("pizza") || (_product.CategoryId != null && _product.CategoryId.ToLower().Contains("pizza"));
+            bool isPizza = IsPizzaProduct();
             this.Size = new Size(400, isPizza ? 310 : 260);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.None;
@@ -34,7 +54,7 @@ namespace HungryFastFoodAdmin.Forms
 
         private void SetupUI()
         {
-            bool isPizza = _product.Name.ToLower().Contains("pizza") || (_product.CategoryId != null && _product.CategoryId.ToLower().Contains("pizza"));
+            bool isPizza = IsPizzaProduct();
             this.Paint += (s, e) =>
             {
                 var g = e.Graphics;

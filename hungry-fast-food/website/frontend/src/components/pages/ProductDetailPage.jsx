@@ -20,7 +20,8 @@ export default function ProductDetailPage() {
     const [error, setError] = useState(null);
     const [addedToCart, setAddedToCart] = useState(false);
 
-    const isPizza = product?.name?.toLowerCase().includes('pizza');
+    const isPizza = (product?.name?.toLowerCase().includes('pizza')) || 
+                    (product?.category_name?.toLowerCase().includes('pizza'));
 
     const getToppingCost = (varName) => {
         if (!varName) return 0;

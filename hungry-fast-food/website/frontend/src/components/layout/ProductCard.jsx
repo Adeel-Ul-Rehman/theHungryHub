@@ -13,7 +13,8 @@ export default function ProductCard({ product }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalQuantity, setModalQuantity] = useState(1);
 
-    const isPizza = product.name.toLowerCase().includes('pizza');
+    const isPizza = (product?.name?.toLowerCase().includes('pizza')) || 
+                    (product?.category_name?.toLowerCase().includes('pizza'));
 
     const getToppingCost = (varName) => {
         if (!varName) return 0;
