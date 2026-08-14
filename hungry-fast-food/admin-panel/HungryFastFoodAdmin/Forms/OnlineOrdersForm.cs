@@ -23,6 +23,7 @@ namespace HungryFastFoodAdmin.Forms
         private System.Windows.Forms.Timer _notificationTimer;
         private System.Windows.Forms.Timer _secTimer;
         private SoundPlayer _soundPlayer;
+        private bool _isPrinting = false;
 
         // Header Panel Components
         private Panel pnlHeader;
@@ -1244,18 +1245,24 @@ namespace HungryFastFoodAdmin.Forms
 
         private void PrintIndividualOrder(Order order)
         {
+            if (_isPrinting) return;
+            _isPrinting = true;
             try
             {
                 var fullOrder = _dbService.GetOrderById(order.Id);
                 if (fullOrder != null)
                 {
-                    _printService.PrintBill(fullOrder);
+                    _printService.PrintBill(fullOrder, true);
                     MessageBox.Show($"Receipt printed successfully for Order #{order.OrderNumber}.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to print receipt: {ex.Message}", "Print Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _isPrinting = false;
             }
         }
 
@@ -1406,20 +1413,30 @@ namespace HungryFastFoodAdmin.Forms
                 return;
             }
 
+            if (_isPrinting) return;
+            _isPrinting = true;
             string orderId = dgvHistory.SelectedRows[0].Cells["Id"].Value?.ToString() ?? "";
-            if (string.IsNullOrEmpty(orderId)) return;
+            if (string.IsNullOrEmpty(orderId))
+            {
+                _isPrinting = false;
+                return;
+            }
             try
             {
                 var fullOrder = _dbService.GetOrderById(orderId);
                 if (fullOrder != null)
                 {
-                    _printService.PrintBill(fullOrder);
+                    _printService.PrintBill(fullOrder, true);
                     MessageBox.Show($"Receipt printed successfully for Order #{fullOrder.OrderNumber}.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to print: {ex.Message}", "Print Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _isPrinting = false;
             }
         }
 
