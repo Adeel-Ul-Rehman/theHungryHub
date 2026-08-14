@@ -40,12 +40,14 @@ namespace HungryFastFoodAdmin.Forms
         private SyncService syncService;
         private SocketSyncService socketSyncService;
         private string adminEmail;
+        private PrintService printService;
 
         public MainForm(string adminEmail)
         {
             this.adminEmail = adminEmail;
             dbService = new DatabaseService();
             syncService = new SyncService();
+            printService = new PrintService();
 
             InitializeComponent();
             SetupDashboardUI();
@@ -68,9 +70,38 @@ namespace HungryFastFoodAdmin.Forms
             syncService.NewOrdersReceived += (orders) =>
             {
                 if (InvokeRequired)
-                    Invoke(new Action(() => ShowNewOrderNotification(orders.Count)));
+                {
+                    Invoke(new Action(() => 
+                    {
+                        ShowNewOrderNotification(orders.Count);
+                        foreach (var order in orders)
+                        {
+                            try
+                            {
+                                printService.PrintBill(order);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogError("Auto-print on Sync arrival failed", ex);
+                            }
+                        }
+                    }));
+                }
                 else
+                {
                     ShowNewOrderNotification(orders.Count);
+                    foreach (var order in orders)
+                    {
+                        try
+                        {
+                            printService.PrintBill(order);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogError("Auto-print on Sync arrival failed", ex);
+                        }
+                    }
+                }
             };
 
             // Start background sync

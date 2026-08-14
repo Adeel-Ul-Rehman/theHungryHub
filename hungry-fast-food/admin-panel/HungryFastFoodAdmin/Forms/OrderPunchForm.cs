@@ -979,14 +979,9 @@ public void ShowQuantityAndAdd(Product product)
                 }
                 catch { }
 
-                // Print bill receipt
+                // Print bill receipt and kitchen slip immediately for all locally punched orders
                 _printService.PrintBill(savedOrder);
-
-                // Print kitchen slip for immediate orders (dining/takeaway)
-                if (isImmediateOrder)
-                {
-                    _printService.PrintKitchenSlip(savedOrder);
-                }
+                _printService.PrintKitchenSlip(savedOrder);
 
                 string orderTypeDisplay = char.ToUpper(_currentOrderType[0]) + _currentOrderType.Substring(1);
                 MessageBox.Show($"Order {savedOrder.OrderNumber} placed successfully!\n\n" +

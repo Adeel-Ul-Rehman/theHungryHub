@@ -1267,19 +1267,6 @@ namespace HungryFastFoodAdmin.Forms
                         _processedOrderIds.Add(order.Id);
                         hasNew = true;
                         ShowNotification(order);
-
-                        // Auto-print immediately if delivery or dining
-                        if (order.OrderType.ToLower() == "delivery" || order.OrderType.ToLower() == "dining")
-                        {
-                            try
-                            {
-                                _printService.PrintBill(order);
-                            }
-                            catch (Exception printEx)
-                            {
-                                Console.WriteLine($"Auto-print failed on arrival: {printEx.Message}");
-                            }
-                        }
                     }
                 }
 
