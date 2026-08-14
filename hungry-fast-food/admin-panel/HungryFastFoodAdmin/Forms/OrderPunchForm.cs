@@ -60,6 +60,7 @@ namespace HungryFastFoodAdmin.Forms
         private string _currentOrderNumber;
         private string _currentOrderType = "dining";
         private decimal _deliveryCharge = 0;
+        private bool _isSavingOrder = false;
 
         public OrderPunchForm()
         {
@@ -944,6 +945,8 @@ public void ShowQuantityAndAdd(Product product)
 
         private void PlaceOrderFlow()
         {
+            if (_isSavingOrder) return;
+            _isSavingOrder = true;
             try
             {
                 if (!ValidateOrder()) return;
@@ -996,6 +999,10 @@ public void ShowQuantityAndAdd(Product product)
             {
                 MessageBox.Show($"Error placing order: {ex.Message}", "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _isSavingOrder = false;
             }
         }
 

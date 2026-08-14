@@ -1175,12 +1175,15 @@ namespace HungryFastFoodAdmin.Forms
         {
             try
             {
+                var existingOrder = _dbService.GetOrderById(orderId);
+                string oldStatus = existingOrder?.Status ?? "";
+
                 _dbService.UpdateOrderStatus(orderId, status, _adminEmail);
 
                 var fullOrder = _dbService.GetOrderById(orderId);
 
-                // Auto-print mini prepare slip on accepting delivery/takeaway order
-                if (status == "preparing" && fullOrder != null)
+                // Auto-print mini prepare slip on accepting delivery/takeaway order (only if transitioning to preparing)
+                if (status == "preparing" && oldStatus != "preparing" && fullOrder != null)
                 {
                     _printService.PrintKitchenSlip(fullOrder);
                 }
@@ -1215,11 +1218,14 @@ namespace HungryFastFoodAdmin.Forms
         {
             try
             {
+                var existingOrder = _dbService.GetOrderById(orderId);
+                string oldStatus = existingOrder?.Status ?? "";
+
                 _dbService.UpdateOrderStatus(orderId, status, _adminEmail);
 
-                // Auto-print kitchen slip silently on auto-confirm status updates if any
+                // Auto-print kitchen slip silently on auto-confirm status updates if transitioning to preparing
                 var fullOrder = _dbService.GetOrderById(orderId);
-                if (status == "preparing" && fullOrder != null)
+                if (status == "preparing" && oldStatus != "preparing" && fullOrder != null)
                 {
                     _printService.PrintKitchenSlip(fullOrder);
                 }
