@@ -692,11 +692,22 @@ namespace HungryFastFoodAdmin.Forms
             }
         }
 
+        private void ClearAndDisposePanelControls(FlowLayoutPanel panel)
+        {
+            if (panel == null) return;
+            for (int i = panel.Controls.Count - 1; i >= 0; i--)
+            {
+                var ctrl = panel.Controls[i];
+                panel.Controls.RemoveAt(i);
+                ctrl.Dispose();
+            }
+        }
+
         private void DisplayActiveOrders(List<Order> orders)
         {
-            flowDelivery.Controls.Clear();
-            flowTakeaway.Controls.Clear();
-            flowDining.Controls.Clear();
+            ClearAndDisposePanelControls(flowDelivery);
+            ClearAndDisposePanelControls(flowTakeaway);
+            ClearAndDisposePanelControls(flowDining);
 
             int cardWidth = flowDelivery.ClientSize.Width - 15;
             if (cardWidth < 280) cardWidth = 280;
