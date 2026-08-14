@@ -16,6 +16,7 @@ namespace HungryFastFoodAdmin.Services
         private Order _currentOrder;
         private Order _kitchenOrder;
         private QRCodeService _qrService;
+        private bool _isDuplicateCopy;
 
         private int PrintWidth => _paperWidth == 80 ? 280 : 226;
         private int RightMargin => PrintWidth - 10;
@@ -68,20 +69,21 @@ namespace HungryFastFoodAdmin.Services
             return createdAtUtc;
         }
 
-        public void PrintBill(Order order)
+        public void PrintBill(Order order, bool isDuplicateCopy = false)
         {
             _currentOrder = order;
-
+            _isDuplicateCopy = isDuplicateCopy;
+ 
             try
             {
                 var printDoc = new PrintDocument();
                 printDoc.PrinterSettings.PrinterName = _printerName;
                 printDoc.PrintPage += PrintDoc_PrintPage;
-
+ 
                 // Set paper size for thermal printer (dynamic width based on config)
                 printDoc.DefaultPageSettings.PaperSize = new PaperSize("Thermal", PrintWidth, 1000);
                 printDoc.DefaultPageSettings.Margins = new Margins(10, 10, 10, 10);
-
+ 
                 printDoc.Print();
                 Console.WriteLine($"🖨️ Bill printed for order {order.OrderNumber}");
             }
@@ -92,12 +94,12 @@ namespace HungryFastFoodAdmin.Services
                 throw;
             }
         }
-
+ 
         private void PrintDoc_PrintPage(object sender, PrintPageEventArgs e)
         {
             DrawBill(e.Graphics, out _);
         }
-
+ 
         public void DrawBill(Graphics g, out int finalY)
         {
             var font = new Font("Segoe UI", 9);
@@ -105,15 +107,23 @@ namespace HungryFastFoodAdmin.Services
             var headerFont = new Font("Segoe UI", 13, FontStyle.Bold);
             var detailFont = new Font("Segoe UI", 8.5F);
             var y = 10;
-
+ 
             int width = PrintWidth;
             int rightMargin = RightMargin;
-
+ 
             // Center Title
             string title = "HUNGRY HUB";
             float titleX = (width - g.MeasureString(title, headerFont).Width) / 2;
             g.DrawString(title, headerFont, Brushes.Black, titleX, y);
             y += 25;
+
+            if (_isDuplicateCopy)
+            {
+                string dupTag = "*** DUPLICATE COPY ***";
+                float dupX = (width - g.MeasureString(dupTag, boldFont).Width) / 2;
+                g.DrawString(dupTag, boldFont, Brushes.Black, dupX, y);
+                y += 18;
+            }
 
             // Address split in two lines and centered
             string addrLine1 = "Zaki Plaza, Muslim Town,";
@@ -376,9 +386,10 @@ namespace HungryFastFoodAdmin.Services
             finalY = y;
         }
 
-        public Bitmap GenerateBillBitmap(Order order)
+        public Bitmap GenerateBillBitmap(Order order, bool isDuplicateCopy = false)
         {
             _currentOrder = order;
+            _isDuplicateCopy = isDuplicateCopy;
             int bmpWidth = PrintWidth;
             using (var tempBmp = new Bitmap(bmpWidth, 2500))
             {
@@ -388,7 +399,7 @@ namespace HungryFastFoodAdmin.Services
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
                     g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                     DrawBill(g, out int finalY);
-
+ 
                     int height = Math.Min(2500, finalY + 40);
                     var cropped = new Bitmap(bmpWidth, height);
                     using (var destG = Graphics.FromImage(cropped))
@@ -432,18 +443,19 @@ namespace HungryFastFoodAdmin.Services
             }
         }
 
-        public void PrintKitchenSlip(Order order)
+        public void PrintKitchenSlip(Order order, bool isDuplicateCopy = false)
         {
             _kitchenOrder = order;
+            _isDuplicateCopy = isDuplicateCopy;
             try
             {
                 var printDoc = new PrintDocument();
                 printDoc.PrinterSettings.PrinterName = _printerName;
                 printDoc.PrintPage += PrintDoc_PrintKitchenPage;
-
+ 
                 printDoc.DefaultPageSettings.PaperSize = new PaperSize("Thermal", PrintWidth, 1000);
                 printDoc.DefaultPageSettings.Margins = new Margins(10, 10, 10, 10);
-
+ 
                 printDoc.Print();
                 Console.WriteLine($"🖨️ Kitchen Slip printed for order {order.OrderNumber}");
             }
@@ -452,27 +464,35 @@ namespace HungryFastFoodAdmin.Services
                 Console.WriteLine($"❌ Kitchen print error: {ex.Message}");
             }
         }
-
+ 
         private void PrintDoc_PrintKitchenPage(object sender, PrintPageEventArgs e)
         {
             DrawKitchenSlip(e.Graphics, out _);
         }
-
+ 
         public void DrawKitchenSlip(Graphics g, out int finalY)
         {
             var font = new Font("Segoe UI", 9.5F);
             var boldFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             var headerFont = new Font("Segoe UI", 13, FontStyle.Bold);
             var y = 10;
-
+ 
             int width = PrintWidth;
             int rightMargin = RightMargin;
-
+ 
             // Center KITCHEN SLIP
             string title = "*** KITCHEN SLIP ***";
             float titleX = (width - g.MeasureString(title, headerFont).Width) / 2;
             g.DrawString(title, headerFont, Brushes.Black, titleX, y);
             y += 30;
+
+            if (_isDuplicateCopy)
+            {
+                string dupTag = "*** DUPLICATE COPY ***";
+                float dupX = (width - g.MeasureString(dupTag, boldFont).Width) / 2;
+                g.DrawString(dupTag, boldFont, Brushes.Black, dupX, y);
+                y += 18;
+            }
 
             int valX = 95;
             g.DrawString("Order #:", boldFont, Brushes.Black, 10, y);
@@ -567,9 +587,10 @@ namespace HungryFastFoodAdmin.Services
             finalY = y;
         }
 
-        public Bitmap GenerateKitchenSlipBitmap(Order order)
+        public Bitmap GenerateKitchenSlipBitmap(Order order, bool isDuplicateCopy = false)
         {
             _kitchenOrder = order;
+            _isDuplicateCopy = isDuplicateCopy;
             int bmpWidth = PrintWidth;
             using (var tempBmp = new Bitmap(bmpWidth, 2000))
             {
@@ -579,7 +600,7 @@ namespace HungryFastFoodAdmin.Services
                     g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
                     g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                     DrawKitchenSlip(g, out int finalY);
-
+ 
                     int height = Math.Min(2000, finalY + 40);
                     var cropped = new Bitmap(bmpWidth, height);
                     using (var destG = Graphics.FromImage(cropped))

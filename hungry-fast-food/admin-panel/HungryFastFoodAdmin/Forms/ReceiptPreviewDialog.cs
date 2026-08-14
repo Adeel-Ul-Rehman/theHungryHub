@@ -25,6 +25,7 @@ namespace HungryFastFoodAdmin.Forms
         private Bitmap _billBmp;
         private Bitmap _kitchenBmp;
         private bool _isShowingBill = true;
+        private bool _isPrinting = false;
 
         public ReceiptPreviewDialog(Order order)
         {
@@ -147,8 +148,8 @@ namespace HungryFastFoodAdmin.Forms
         {
             try
             {
-                _billBmp = _printService.GenerateBillBitmap(_order);
-                _kitchenBmp = _printService.GenerateKitchenSlipBitmap(_order);
+                _billBmp = _printService.GenerateBillBitmap(_order, true);
+                _kitchenBmp = _printService.GenerateKitchenSlipBitmap(_order, true);
             }
             catch (Exception ex)
             {
@@ -193,22 +194,28 @@ namespace HungryFastFoodAdmin.Forms
 
         private void BtnPrint_Click(object sender, EventArgs e)
         {
+            if (_isPrinting) return;
+            _isPrinting = true;
             try
             {
                 if (_isShowingBill)
                 {
-                    _printService.PrintBill(_order);
+                    _printService.PrintBill(_order, true);
                     MessageBox.Show("Customer Bill printed successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
-                    _printService.PrintKitchenSlip(_order);
+                    _printService.PrintKitchenSlip(_order, true);
                     MessageBox.Show("Kitchen Slip printed successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to execute print command: {ex.Message}", "Print Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _isPrinting = false;
             }
         }
 
