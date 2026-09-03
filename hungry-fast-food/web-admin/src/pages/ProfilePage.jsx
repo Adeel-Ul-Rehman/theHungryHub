@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { UserCheck, Shield, KeyRound, Save, CheckCircle2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { UserCheck, Shield, KeyRound, Save, CheckCircle2, Upload, Trash2, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const ProfilePage = () => {
@@ -7,16 +7,34 @@ const ProfilePage = () => {
   
   const [fullName, setFullName] = useState(admin.fullName || '');
   const [email, setEmail] = useState(admin.email || '');
-  const [phone, setPhone] = useState(admin.phone || '');
+  const [avatarUrl, setAvatarUrl] = useState(admin.avatarUrl || null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSaveProfile = (e) => {
     e.preventDefault();
-    updateProfile({ fullName, email, phone });
-    setSuccessMsg('Profile information updated successfully!');
-    setTimeout(() => setSuccessMsg(''), 3000);
+    updateProfile({ fullName, email, avatarUrl });
+    setSuccessMsg('Profile details and avatar updated successfully!');
+    setTimeout(() => setSuccessMsg(''), 3500);
   };
 
   const handleChangePassword = (e) => {
@@ -25,7 +43,7 @@ const ProfilePage = () => {
     setSuccessMsg('Security password changed successfully!');
     setCurrentPassword('');
     setNewPassword('');
-    setTimeout(() => setSuccessMsg(''), 3000);
+    setTimeout(() => setSuccessMsg(''), 3500);
   };
 
   return (
@@ -33,9 +51,9 @@ const ProfilePage = () => {
       {/* Header */}
       <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
         <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <UserCheck className="w-6 h-6 text-orange-500" /> Admin Profile & Credentials Settings
+          <UserCheck className="w-6 h-6 text-orange-500" /> Admin Profile & Access Credentials
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Manage administrator access, contact details, and security credentials</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Manage administrator details, custom avatar picture, and security credentials</p>
       </div>
 
       {successMsg && (
@@ -44,12 +62,70 @@ const ProfilePage = () => {
         </div>
       )}
 
-      {/* Profile Form */}
+      {/* Profile Avatar & Details Form */}
       <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
         <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
-          <Shield className="w-5 h-5 text-orange-500" /> General Profile Information
+          <Shield className="w-5 h-5 text-orange-500" /> Admin Avatar & Profile Details
         </h3>
 
+        {/* Profile Picture Upload / Remove Section */}
+        <div className="flex items-center gap-6 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+          <div className="relative group">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Admin Avatar"
+                className="w-20 h-20 rounded-2xl object-cover ring-4 ring-orange-500/20 shadow-md"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-400 text-white flex items-center justify-center font-black text-2xl shadow-md">
+                {fullName ? fullName[0] : 'A'}
+              </div>
+            )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-orange-500 text-white shadow-md hover:bg-orange-600 transition-colors"
+              title="Upload New Picture"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Admin Profile Picture</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Upload a square image (JPG or PNG, max 2MB)</p>
+            
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold text-xs hover:bg-orange-100 transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" /> Change Picture
+              </button>
+
+              {avatarUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAvatar}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-xs hover:bg-rose-100 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Remove Picture
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Profile Inputs */}
         <form onSubmit={handleSaveProfile} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -58,6 +134,7 @@ const ProfilePage = () => {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
+                required
                 className="w-full mt-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white"
               />
             </div>
@@ -67,19 +144,10 @@ const ProfilePage = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
                 className="w-full mt-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">Contact Phone Number</label>
-            <input
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full mt-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white"
-            />
           </div>
 
           <button
@@ -91,10 +159,10 @@ const ProfilePage = () => {
         </form>
       </div>
 
-      {/* Password Change Form */}
+      {/* Security Password Form */}
       <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
         <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
-          <KeyRound className="w-5 h-5 text-orange-500" /> Security & Access Password
+          <KeyRound className="w-5 h-5 text-orange-500" /> Security & Password Settings
         </h3>
 
         <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">

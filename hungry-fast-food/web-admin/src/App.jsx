@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import LogoutModal from './components/LogoutModal';
 import DashboardPage from './pages/DashboardPage';
 import InventoryPage from './pages/InventoryPage';
 import OrdersPage from './pages/OrdersPage';
@@ -12,13 +13,16 @@ import LoginPage from './pages/LoginPage';
 import { useAuth } from './context/AuthContext';
 
 const Layout = ({ children, title }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
-      <Sidebar />
+      <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Header title={title} />
+        <Header title={title} onMobileMenuToggle={() => setMobileMenuOpen(true)} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+      <LogoutModal />
     </div>
   );
 };
@@ -79,7 +83,7 @@ function App() {
         path="/ai-assistant"
         element={
           <ProtectedRoute>
-            <Layout title="Hugging Face AI Operations Assistant">
+            <Layout title="AI Business Analysis & Insights">
               <AIAssistantPage />
             </Layout>
           </ProtectedRoute>

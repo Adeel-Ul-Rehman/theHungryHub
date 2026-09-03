@@ -3,33 +3,44 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const [token, setToken] = useState(() => localStorage.getItem('web_admin_token') || null);
   const [admin, setAdmin] = useState(() => {
     const saved = localStorage.getItem('web_admin_user');
     return saved ? JSON.parse(saved) : {
       fullName: 'Restaurant Owner',
       email: 'admin@thehungryhub.shop',
-      phone: '+92 300 1234567',
-      role: 'Owner / Administrator'
+      role: 'Owner / Administrator',
+      avatarUrl: null
     };
   });
 
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Default true for instant demo
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(localStorage.getItem('web_admin_token')));
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const login = (email, password) => {
-    const user = {
+  const login = async (email, password) => {
+    // Generate simulated JWT token for admin session
+    const mockJwt = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(JSON.stringify({ email, exp: Date.now() + 86400000 }))}.signature`;
+    
+    const userObj = {
       fullName: 'Restaurant Owner',
       email: email || 'admin@thehungryhub.shop',
-      phone: '+92 300 1234567',
-      role: 'Owner / Administrator'
+      role: 'Owner / Administrator',
+      avatarUrl: admin.avatarUrl || null
     };
-    setAdmin(user);
+
+    setToken(mockJwt);
+    setAdmin(userObj);
     setIsAuthenticated(true);
-    localStorage.setItem('web_admin_user', JSON.stringify(user));
+    localStorage.setItem('web_admin_token', mockJwt);
+    localStorage.setItem('web_admin_user', JSON.stringify(userObj));
     return true;
   };
 
-  const logout = () => {
+  const confirmLogout = () => {
+    setToken(null);
     setIsAuthenticated(false);
+    setShowLogoutModal(false);
+    localStorage.removeItem('web_admin_token');
     localStorage.removeItem('web_admin_user');
   };
 
@@ -40,7 +51,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ admin, isAuthenticated, login, logout, updateProfile }}>
+    <AuthContext.Provider value={{ 
+      token, 
+      admin, 
+      isAuthenticated, 
+      login, 
+      confirmLogout, 
+      showLogoutModal, 
+      setShowLogoutModal, 
+      updateProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );
