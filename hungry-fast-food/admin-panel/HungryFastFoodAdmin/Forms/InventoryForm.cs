@@ -580,8 +580,10 @@ namespace HungryFastFoodAdmin.Forms
                 Label l3 = new Label { Text = "Initial Stock:", Location = new Point(20, 100), AutoSize = true };
                 NumericUpDown nudStock = new NumericUpDown { Location = new Point(140, 98), Width = 220, Maximum = 100000, DecimalPlaces = 1 };
 
-                Label l4 = new Label { Text = "Unit (g, kg, units):", Location = new Point(20, 140), AutoSize = true };
-                TextBox txtUnit = new TextBox { Location = new Point(140, 138), Width = 220, Text = "g" };
+                Label l4 = new Label { Text = "Measurement Unit:", Location = new Point(20, 140), AutoSize = true };
+                ComboBox cmbUnit = new ComboBox { Location = new Point(140, 138), Width = 220, DropDownStyle = ComboBoxStyle.DropDownList };
+                cmbUnit.Items.AddRange(new object[] { "units", "grams (g)", "kilograms (kg)", "milliliters (ml)", "liters (L)", "pcs / items", "packs / boxes", "bottles / cans", "dozens" });
+                cmbUnit.SelectedIndex = 0;
 
                 Label l5 = new Label { Text = "Min Alert Level:", Location = new Point(20, 180), AutoSize = true };
                 NumericUpDown nudMin = new NumericUpDown { Location = new Point(140, 178), Width = 220, Maximum = 50000, DecimalPlaces = 1 };
@@ -611,7 +613,7 @@ namespace HungryFastFoodAdmin.Forms
                         Name = txtName.Text.Trim(),
                         Category = cmbCat.SelectedItem.ToString(),
                         CurrentStock = (double)nudStock.Value,
-                        Unit = txtUnit.Text.Trim(),
+                        Unit = cmbUnit.SelectedItem.ToString(),
                         MinThreshold = (double)nudMin.Value,
                         CostPerUnit = nudCost.Value
                     });
@@ -619,7 +621,7 @@ namespace HungryFastFoodAdmin.Forms
                     dlg.DialogResult = DialogResult.OK;
                 };
 
-                dlg.Controls.AddRange(new Control[] { l1, txtName, l2, cmbCat, l3, nudStock, l4, txtUnit, l5, nudMin, l6, nudCost, btnSave });
+                dlg.Controls.AddRange(new Control[] { l1, txtName, l2, cmbCat, l3, nudStock, l4, cmbUnit, l5, nudMin, l6, nudCost, btnSave });
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     LoadAllInventoryData();
