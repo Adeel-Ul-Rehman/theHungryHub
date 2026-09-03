@@ -30,6 +30,7 @@ import authRoutes from './src/routes/authRoutes.js';
 import orderRoutes from './src/routes/orderRoutes.js';
 import menuRoutes from './src/routes/menuRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
+import aiRoutes from './src/routes/aiRoutes.js';
 
 // Create Express app
 const app = express();
@@ -161,6 +162,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ai', aiRoutes);
 
 // ============================================
 // ERROR HANDLING
