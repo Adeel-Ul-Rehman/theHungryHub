@@ -1194,10 +1194,11 @@ namespace HungryFastFoodAdmin.Forms
 
                 var fullOrder = _dbService.GetOrderById(orderId);
 
-                // Auto-print mini prepare slip on accepting delivery/takeaway order (only if transitioning to preparing)
+                // Auto-print mini prepare slip & deduct inventory on accepting delivery/takeaway order (only if transitioning to preparing)
                 if (status == "preparing" && oldStatus != "preparing" && fullOrder != null)
                 {
                     _printService.PrintKitchenSlip(fullOrder);
+                    _dbService.DeductInventoryForOrder(fullOrder);
                 }
 
                 try

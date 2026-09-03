@@ -975,6 +975,9 @@ public void ShowQuantityAndAdd(Product product)
 
                 var savedOrder = _dbService.CreateOrder(order, order.Items);
 
+                // Auto-deduct raw material inventory for punched order
+                _dbService.DeductInventoryForOrder(savedOrder);
+
                 // Play sound confirmation
                 try
                 {

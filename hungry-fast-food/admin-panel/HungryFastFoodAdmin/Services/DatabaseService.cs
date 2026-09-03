@@ -76,6 +76,11 @@ namespace HungryFastFoodAdmin.Services
             ExecuteNonQuery(connection, CreateSystemSettingsTable());
             ExecuteNonQuery(connection, CreateDeliveryZonesTable());
             ExecuteNonQuery(connection, CreateSyncQueueTable());
+            ExecuteNonQuery(connection, CreateRawMaterialsTable());
+            ExecuteNonQuery(connection, CreateProductRecipesTable());
+            ExecuteNonQuery(connection, CreateInventoryLogsTable());
+
+            SeedDefaultInventoryData(connection);
 
             Console.WriteLine("✅ Database initialized successfully");
 
@@ -2214,5 +2219,454 @@ namespace HungryFastFoodAdmin.Services
         {
             return;
         }
+
+        #region Inventory Table Creation & Seeding
+
+        private string CreateRawMaterialsTable()
+        {
+            return @"CREATE TABLE IF NOT EXISTS RawMaterials (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name TEXT NOT NULL,
+                Category TEXT NOT NULL,
+                CurrentStock REAL DEFAULT 0,
+                Unit TEXT NOT NULL,
+                MinThreshold REAL DEFAULT 0,
+                CostPerUnit REAL DEFAULT 0,
+                LastUpdated TEXT DEFAULT CURRENT_TIMESTAMP
+            );";
+        }
+
+        private string CreateProductRecipesTable()
+        {
+            return @"CREATE TABLE IF NOT EXISTS ProductRecipes (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ProductName TEXT NOT NULL,
+                VariationName TEXT DEFAULT '',
+                RawMaterialId INTEGER NOT NULL,
+                RequiredQuantity REAL NOT NULL,
+                FOREIGN KEY (RawMaterialId) REFERENCES RawMaterials(Id)
+            );";
+        }
+
+        private string CreateInventoryLogsTable()
+        {
+            return @"CREATE TABLE IF NOT EXISTS InventoryLogs (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                RawMaterialName TEXT NOT NULL,
+                ChangeAmount REAL NOT NULL,
+                Type TEXT NOT NULL,
+                ReferenceId TEXT,
+                Notes TEXT,
+                Timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+            );";
+        }
+
+        private void SeedDefaultInventoryData(SQLiteConnection connection)
+        {
+            try
+            {
+                using var checkCmd = new SQLiteCommand("SELECT COUNT(*) FROM RawMaterials", connection);
+                long count = (long)checkCmd.ExecuteScalar();
+                if (count > 0) return; // Already seeded
+
+                // 1. Seed Raw Materials
+                var rawItems = new[]
+                {
+                    new { Name = "Burger Buns", Category = "Bakery", Stock = 120.0, Unit = "units", Min = 30.0, Cost = 25.0 },
+                    new { Name = "Chicken Fillets", Category = "Meat & Poultry", Stock = 15000.0, Unit = "g", Min = 3000.0, Cost = 1.2 },
+                    new { Name = "Beef Patties", Category = "Meat & Poultry", Stock = 10000.0, Unit = "g", Min = 2000.0, Cost = 1.5 },
+                    new { Name = "Cheddar Cheese Slices", Category = "Dairy", Stock = 200.0, Unit = "units", Min = 40.0, Cost = 15.0 },
+                    new { Name = "Pizza Mozzarella Cheese", Category = "Dairy", Stock = 8000.0, Unit = "g", Min = 2000.0, Cost = 1.8 },
+                    new { Name = "French Fries (Frozen)", Category = "Vegetables", Stock = 20000.0, Unit = "g", Min = 5000.0, Cost = 0.6 },
+                    new { Name = "Garlic Mayo Sauce", Category = "Sauces & Spices", Stock = 5000.0, Unit = "ml", Min = 1000.0, Cost = 0.5 },
+                    new { Name = "Pizza Dough (Portions)", Category = "Bakery", Stock = 50.0, Unit = "units", Min = 15.0, Cost = 40.0 },
+                    new { Name = "Cooking Oil", Category = "Pantry", Stock = 15000.0, Unit = "ml", Min = 3000.0, Cost = 0.4 },
+                    new { Name = "Burger Packaging Boxes", Category = "Packaging", Stock = 300.0, Unit = "units", Min = 50.0, Cost = 8.0 }
+                };
+
+                foreach (var item in rawItems)
+                {
+                    using var insertCmd = new SQLiteCommand(
+                        "INSERT INTO RawMaterials (Name, Category, CurrentStock, Unit, MinThreshold, CostPerUnit, LastUpdated) " +
+                        "VALUES (@Name, @Category, @Stock, @Unit, @Min, @Cost, CURRENT_TIMESTAMP)", connection);
+                    insertCmd.Parameters.AddWithValue("@Name", item.Name);
+                    insertCmd.Parameters.AddWithValue("@Category", item.Category);
+                    insertCmd.Parameters.AddWithValue("@Stock", item.Stock);
+                    insertCmd.Parameters.AddWithValue("@Unit", item.Unit);
+                    insertCmd.Parameters.AddWithValue("@Min", item.Min);
+                    insertCmd.Parameters.AddWithValue("@Cost", item.Cost);
+                    insertCmd.ExecuteNonQuery();
+                }
+
+                // 2. Seed Default Recipes for Key Products
+                int getMatId(string name)
+                {
+                    using var cmd = new SQLiteCommand("SELECT Id FROM RawMaterials WHERE Name = @n LIMIT 1", connection);
+                    cmd.Parameters.AddWithValue("@n", name);
+                    var res = cmd.ExecuteScalar();
+                    return res != null ? Convert.ToInt32(res) : 1;
+                }
+
+                int bunId = getMatId("Burger Buns");
+                int chickenId = getMatId("Chicken Fillets");
+                int beefId = getMatId("Beef Patties");
+                int cheeseSliceId = getMatId("Cheddar Cheese Slices");
+                int sauceId = getMatId("Garlic Mayo Sauce");
+                int friesId = getMatId("French Fries (Frozen)");
+                int boxId = getMatId("Burger Packaging Boxes");
+
+                var recipes = new[]
+                {
+                    // Zinger Burger / Chicken Burger
+                    new { Prod = "Zinger Burger", Var = "", MatId = bunId, Qty = 1.0 },
+                    new { Prod = "Zinger Burger", Var = "", MatId = chickenId, Qty = 150.0 },
+                    new { Prod = "Zinger Burger", Var = "", MatId = sauceId, Qty = 25.0 },
+                    new { Prod = "Zinger Burger", Var = "", MatId = boxId, Qty = 1.0 },
+
+                    // Cheese Burger
+                    new { Prod = "Beef Cheese Burger", Var = "", MatId = bunId, Qty = 1.0 },
+                    new { Prod = "Beef Cheese Burger", Var = "", MatId = beefId, Qty = 120.0 },
+                    new { Prod = "Beef Cheese Burger", Var = "", MatId = cheeseSliceId, Qty = 1.0 },
+                    new { Prod = "Beef Cheese Burger", Var = "", MatId = sauceId, Qty = 20.0 },
+                    new { Prod = "Beef Cheese Burger", Var = "", MatId = boxId, Qty = 1.0 },
+
+                    // French Fries
+                    new { Prod = "French Fries", Var = "", MatId = friesId, Qty = 200.0 },
+                    new { Prod = "French Fries", Var = "", MatId = sauceId, Qty = 15.0 }
+                };
+
+                foreach (var r in recipes)
+                {
+                    using var rCmd = new SQLiteCommand(
+                        "INSERT INTO ProductRecipes (ProductName, VariationName, RawMaterialId, RequiredQuantity) " +
+                        "VALUES (@Prod, @Var, @MatId, @Qty)", connection);
+                    rCmd.Parameters.AddWithValue("@Prod", r.Prod);
+                    rCmd.Parameters.AddWithValue("@Var", r.Var);
+                    rCmd.Parameters.AddWithValue("@MatId", r.MatId);
+                    rCmd.Parameters.AddWithValue("@Qty", r.Qty);
+                    rCmd.ExecuteNonQuery();
+                }
+
+                // Initial Restock Log
+                using var logCmd = new SQLiteCommand(
+                    "INSERT INTO InventoryLogs (RawMaterialName, ChangeAmount, Type, ReferenceId, Notes, Timestamp) " +
+                    "VALUES ('Initial Stock Seeding', 0, 'system_init', 'INIT', 'Default inventory initialized for demo', CURRENT_TIMESTAMP)", connection);
+                logCmd.ExecuteNonQuery();
+
+                Console.WriteLine("📦 Default Raw Materials & Recipes seeded successfully!");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error seeding inventory: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Inventory Management Methods
+
+        public List<RawMaterial> GetRawMaterials()
+        {
+            var list = new List<RawMaterial>();
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                using var cmd = new SQLiteCommand("SELECT * FROM RawMaterials ORDER BY Name ASC", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    list.Add(new RawMaterial
+                    {
+                        Id = Convert.ToInt32(reader["Id"]),
+                        Name = reader["Name"].ToString(),
+                        Category = reader["Category"].ToString(),
+                        CurrentStock = Convert.ToDouble(reader["CurrentStock"]),
+                        Unit = reader["Unit"].ToString(),
+                        MinThreshold = Convert.ToDouble(reader["MinThreshold"]),
+                        CostPerUnit = Convert.ToDecimal(reader["CostPerUnit"]),
+                        LastUpdated = reader["LastUpdated"] != DBNull.Value ? Convert.ToDateTime(reader["LastUpdated"]) : DateTime.Now
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching raw materials: {ex.Message}");
+            }
+            return list;
+        }
+
+        public void SaveRawMaterial(RawMaterial item)
+        {
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                if (item.Id > 0)
+                {
+                    using var cmd = new SQLiteCommand(
+                        "UPDATE RawMaterials SET Name=@Name, Category=@Cat, CurrentStock=@Stock, Unit=@Unit, " +
+                        "MinThreshold=@Min, CostPerUnit=@Cost, LastUpdated=CURRENT_TIMESTAMP WHERE Id=@Id", conn);
+                    cmd.Parameters.AddWithValue("@Name", item.Name);
+                    cmd.Parameters.AddWithValue("@Cat", item.Category);
+                    cmd.Parameters.AddWithValue("@Stock", item.CurrentStock);
+                    cmd.Parameters.AddWithValue("@Unit", item.Unit);
+                    cmd.Parameters.AddWithValue("@Min", item.MinThreshold);
+                    cmd.Parameters.AddWithValue("@Cost", item.CostPerUnit);
+                    cmd.Parameters.AddWithValue("@Id", item.Id);
+                    cmd.ExecuteNonQuery();
+                }
+                else
+                {
+                    using var cmd = new SQLiteCommand(
+                        "INSERT INTO RawMaterials (Name, Category, CurrentStock, Unit, MinThreshold, CostPerUnit, LastUpdated) " +
+                        "VALUES (@Name, @Cat, @Stock, @Unit, @Min, @Cost, CURRENT_TIMESTAMP)", conn);
+                    cmd.Parameters.AddWithValue("@Name", item.Name);
+                    cmd.Parameters.AddWithValue("@Cat", item.Category);
+                    cmd.Parameters.AddWithValue("@Stock", item.CurrentStock);
+                    cmd.Parameters.AddWithValue("@Unit", item.Unit);
+                    cmd.Parameters.AddWithValue("@Min", item.MinThreshold);
+                    cmd.Parameters.AddWithValue("@Cost", item.CostPerUnit);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving raw material: {ex.Message}");
+            }
+        }
+
+        public void AddStockQuantity(int rawMaterialId, double addedQuantity, string referenceId, string notes)
+        {
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+
+                string matName = "";
+                using (var getCmd = new SQLiteCommand("SELECT Name FROM RawMaterials WHERE Id = @Id", conn))
+                {
+                    getCmd.Parameters.AddWithValue("@Id", rawMaterialId);
+                    matName = getCmd.ExecuteScalar()?.ToString() ?? "";
+                }
+
+                using (var updateCmd = new SQLiteCommand(
+                    "UPDATE RawMaterials SET CurrentStock = CurrentStock + @Qty, LastUpdated = CURRENT_TIMESTAMP WHERE Id = @Id", conn))
+                {
+                    updateCmd.Parameters.AddWithValue("@Qty", addedQuantity);
+                    updateCmd.Parameters.AddWithValue("@Id", rawMaterialId);
+                    updateCmd.ExecuteNonQuery();
+                }
+
+                using (var logCmd = new SQLiteCommand(
+                    "INSERT INTO InventoryLogs (RawMaterialName, ChangeAmount, Type, ReferenceId, Notes, Timestamp) " +
+                    "VALUES (@Name, @Amt, 'manual_restock', @Ref, @Notes, CURRENT_TIMESTAMP)", conn))
+                {
+                    logCmd.Parameters.AddWithValue("@Name", matName);
+                    logCmd.Parameters.AddWithValue("@Amt", addedQuantity);
+                    logCmd.Parameters.AddWithValue("@Ref", referenceId ?? "MANUAL");
+                    logCmd.Parameters.AddWithValue("@Notes", notes ?? "Stock Restocked by Admin");
+                    logCmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error adding stock quantity: {ex.Message}");
+            }
+        }
+
+        public void DeleteRawMaterial(int id)
+        {
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                using var cmd = new SQLiteCommand("DELETE FROM RawMaterials WHERE Id = @Id", conn);
+                cmd.Parameters.AddWithValue("@Id", id);
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting raw material: {ex.Message}");
+            }
+        }
+
+        public List<ProductRecipe> GetProductRecipes()
+        {
+            var list = new List<ProductRecipe>();
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                string sql = @"SELECT r.*, m.Name as RawMaterialName, m.Unit 
+                               FROM ProductRecipes r 
+                               JOIN RawMaterials m ON r.RawMaterialId = m.Id 
+                               ORDER BY r.ProductName ASC";
+                using var cmd = new SQLiteCommand(sql, conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    list.Add(new ProductRecipe
+                    {
+                        Id = Convert.ToInt32(reader["Id"]),
+                        ProductName = reader["ProductName"].ToString(),
+                        VariationName = reader["VariationName"].ToString(),
+                        RawMaterialId = Convert.ToInt32(reader["RawMaterialId"]),
+                        RawMaterialName = reader["RawMaterialName"].ToString(),
+                        RequiredQuantity = Convert.ToDouble(reader["RequiredQuantity"]),
+                        Unit = reader["Unit"].ToString()
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching product recipes: {ex.Message}");
+            }
+            return list;
+        }
+
+        public void SaveProductRecipe(ProductRecipe recipe)
+        {
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                if (recipe.Id > 0)
+                {
+                    using var cmd = new SQLiteCommand(
+                        "UPDATE ProductRecipes SET ProductName=@P, VariationName=@V, RawMaterialId=@M, RequiredQuantity=@Q WHERE Id=@Id", conn);
+                    cmd.Parameters.AddWithValue("@P", recipe.ProductName);
+                    cmd.Parameters.AddWithValue("@V", recipe.VariationName ?? "");
+                    cmd.Parameters.AddWithValue("@M", recipe.RawMaterialId);
+                    cmd.Parameters.AddWithValue("@Q", recipe.RequiredQuantity);
+                    cmd.Parameters.AddWithValue("@Id", recipe.Id);
+                    cmd.ExecuteNonQuery();
+                }
+                else
+                {
+                    using var cmd = new SQLiteCommand(
+                        "INSERT INTO ProductRecipes (ProductName, VariationName, RawMaterialId, RequiredQuantity) " +
+                        "VALUES (@P, @V, @M, @Q)", conn);
+                    cmd.Parameters.AddWithValue("@P", recipe.ProductName);
+                    cmd.Parameters.AddWithValue("@V", recipe.VariationName ?? "");
+                    cmd.Parameters.AddWithValue("@M", recipe.RawMaterialId);
+                    cmd.Parameters.AddWithValue("@Q", recipe.RequiredQuantity);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving product recipe: {ex.Message}");
+            }
+        }
+
+        public void DeleteProductRecipe(int id)
+        {
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                using var cmd = new SQLiteCommand("DELETE FROM ProductRecipes WHERE Id = @Id", conn);
+                cmd.Parameters.AddWithValue("@Id", id);
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting recipe: {ex.Message}");
+            }
+        }
+
+        public List<InventoryLog> GetInventoryLogs(int limit = 100)
+        {
+            var list = new List<InventoryLog>();
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                using var cmd = new SQLiteCommand($"SELECT * FROM InventoryLogs ORDER BY Timestamp DESC LIMIT {limit}", conn);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    list.Add(new InventoryLog
+                    {
+                        Id = Convert.ToInt32(reader["Id"]),
+                        RawMaterialName = reader["RawMaterialName"].ToString(),
+                        ChangeAmount = Convert.ToDouble(reader["ChangeAmount"]),
+                        Type = reader["Type"].ToString(),
+                        ReferenceId = reader["ReferenceId"]?.ToString() ?? "",
+                        Notes = reader["Notes"]?.ToString() ?? "",
+                        Timestamp = reader["Timestamp"] != DBNull.Value ? Convert.ToDateTime(reader["Timestamp"]) : DateTime.Now
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching inventory logs: {ex.Message}");
+            }
+            return list;
+        }
+
+        public void DeductInventoryForOrder(Order order)
+        {
+            if (order == null || order.Items == null || order.Items.Count == 0) return;
+
+            try
+            {
+                using var conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+
+                foreach (var item in order.Items)
+                {
+                    string pName = item.ProductName;
+
+                    // Match recipes by Product Name or matching partial name
+                    string sql = @"SELECT r.RawMaterialId, r.RequiredQuantity, m.Name as RawMaterialName 
+                                   FROM ProductRecipes r 
+                                   JOIN RawMaterials m ON r.RawMaterialId = m.Id 
+                                   WHERE LOWER(r.ProductName) = LOWER(@P) 
+                                      OR LOWER(@P) LIKE '%' || LOWER(r.ProductName) || '%'";
+                    using var cmd = new SQLiteCommand(sql, conn);
+                    cmd.Parameters.AddWithValue("@P", pName);
+                    using var reader = cmd.ExecuteReader();
+
+                    var deductions = new List<(int matId, string matName, double reqQty)>();
+                    while (reader.Read())
+                    {
+                        deductions.Add((
+                            Convert.ToInt32(reader["RawMaterialId"]),
+                            reader["RawMaterialName"].ToString(),
+                            Convert.ToDouble(reader["RequiredQuantity"])
+                        ));
+                    }
+                    reader.Close();
+
+                    foreach (var d in deductions)
+                    {
+                        double totalDeduction = d.reqQty * item.Quantity;
+
+                        using var updateCmd = new SQLiteCommand(
+                            "UPDATE RawMaterials SET CurrentStock = MAX(0, CurrentStock - @Deduct), LastUpdated = CURRENT_TIMESTAMP WHERE Id = @Id", conn);
+                        updateCmd.Parameters.AddWithValue("@Deduct", totalDeduction);
+                        updateCmd.Parameters.AddWithValue("@Id", d.matId);
+                        updateCmd.ExecuteNonQuery();
+
+                        using var logCmd = new SQLiteCommand(
+                            "INSERT INTO InventoryLogs (RawMaterialName, ChangeAmount, Type, ReferenceId, Notes, Timestamp) " +
+                            "VALUES (@MatName, @Amt, 'deduction_order', @Ref, @Notes, CURRENT_TIMESTAMP)", conn);
+                        logCmd.Parameters.AddWithValue("@MatName", d.matName);
+                        logCmd.Parameters.AddWithValue("@Amt", -totalDeduction);
+                        logCmd.Parameters.AddWithValue("@Ref", order.OrderNumber ?? "PUNCH");
+                        logCmd.Parameters.AddWithValue("@Notes", $"Consumed by Order #{order.OrderNumber} ({item.Quantity}x {pName})");
+                        logCmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deducting inventory for order: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }

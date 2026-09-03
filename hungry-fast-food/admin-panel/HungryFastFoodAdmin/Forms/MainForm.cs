@@ -20,6 +20,7 @@ namespace HungryFastFoodAdmin.Forms
         private Button btnMenu;
         private Button btnDeals;
         private Button btnReports;
+        private Button btnInventory;
         private Button btnSettings;
         private Button btnLogout;
 
@@ -222,6 +223,10 @@ namespace HungryFastFoodAdmin.Forms
 
             btnReports = CreateSidebarButton("📊  Reports", yPos, btnReports_Click);
             sidebarPanel.Controls.Add(btnReports);
+            yPos += btnHeight + spacing;
+
+            btnInventory = CreateSidebarButton("📦  Inventory", yPos, btnInventory_Click);
+            sidebarPanel.Controls.Add(btnInventory);
             yPos += btnHeight + spacing;
 
             btnSettings = CreateSidebarButton("⚙️  Settings", yPos, btnSettings_Click);
@@ -432,6 +437,7 @@ namespace HungryFastFoodAdmin.Forms
         private void btnMenu_Click(object sender, EventArgs e) => LoadForm(new MenuManagementForm(), "Menu Management", btnMenu);
         private void btnDeals_Click(object sender, EventArgs e) => LoadForm(new DealManagementForm(), "Deals", btnDeals);
         private void btnReports_Click(object sender, EventArgs e) => LoadForm(new ReportsForm(), "Reports", btnReports);
+        private void btnInventory_Click(object sender, EventArgs e) => LoadForm(new InventoryForm(), "Inventory & Recipes", btnInventory);
         private void btnSettings_Click(object sender, EventArgs e) => LoadForm(new SettingsForm(adminEmail), "Settings", btnSettings);
 
         private void btnLogout_Click(object sender, EventArgs e)
